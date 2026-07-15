@@ -190,7 +190,8 @@ function pct(n: number | null | undefined): string {
   return `${n}%`;
 }
 
-function initials(name: string): string {
+function initials(name: string | null | undefined): string {
+  if (!name?.trim()) return "?";
   return name
     .split(/\s+/)
     .filter(Boolean)
@@ -219,10 +220,11 @@ function Sparkline({
   series,
   metric,
 }: {
-  series: InsightsPayload["series"];
+  series: InsightsPayload["series"] | null | undefined;
   metric: "revenue" | "appointments" | "average_ticket";
 }) {
-  const values = series.map((s) => s[metric]);
+  const safeSeries = series ?? [];
+  const values = safeSeries.map((s) => s[metric] ?? 0);
   const max = Math.max(1, ...values);
   const w = 640;
   const h = 220;
@@ -271,10 +273,20 @@ function Sparkline({
       {values.map((v, i) => {
         const x = pad + (i / Math.max(1, values.length - 1)) * (w - pad * 2);
         const y = h - pad - (v / max) * (h - pad * 2);
-        return <circle key={series[i].date} cx={x} cy={y} r="3.5" fill="#fff" stroke="#047857" strokeWidth="2" />;
+        return (
+          <circle
+            key={safeSeries[i]?.date ?? i}
+            cx={x}
+            cy={y}
+            r="3.5"
+            fill="#fff"
+            stroke="#047857"
+            strokeWidth="2"
+          />
+        );
       })}
-      {series.map((s, i) => {
-        if (series.length > 14 && i % Math.ceil(series.length / 7) !== 0) return null;
+      {safeSeries.map((s, i) => {
+        if (safeSeries.length > 14 && i % Math.ceil(safeSeries.length / 7) !== 0) return null;
         const x = pad + (i / Math.max(1, values.length - 1)) * (w - pad * 2);
         return (
           <text key={`l-${s.date}`} x={x} y={h - 2} textAnchor="middle" fontSize="10" fill="#9ca3af">
@@ -381,7 +393,59 @@ export function DashboardPage() {
     );
   }
 
-  const s = data.snapshot;
+  const s = data.snapshot ?? {
+    revenue: 0,
+    revenue_delta_pct: null,
+    appointments: 0,
+    appointments_delta_pct: null,
+    customers_served: 0,
+    customers_served_delta_pct: null,
+    products_sold: 0,
+    products_sold_delta_pct: null,
+    average_ticket: 0,
+    average_ticket_delta_pct: null,
+    occupancy_rate: null,
+    occupancy_delta_pct: null,
+  };
+  const revenueBreakdown = data.revenue_breakdown ?? [];
+  const topServices = data.top_services ?? [];
+  const staffPerformance = data.staff_performance ?? [];
+  const customers = data.customers ?? {
+    total: 0,
+    new: 0,
+    returning: 0,
+    retention_pct: null,
+    avg_visit_frequency: 0,
+    inactive_30: 0,
+    inactive_60: 0,
+    inactive_90: 0,
+    highest_spending: null,
+    most_loyal: null,
+    average_customer_value: 0,
+  };
+  const inventory = data.inventory ?? {
+    inventory_cost: 0,
+    potential_revenue: 0,
+    projected_gross_profit: 0,
+    products_remaining: 0,
+    sku_count: 0,
+    products_sold: 0,
+    low_stock: [],
+    out_of_stock: [],
+    note: "",
+  };
+  const projections = data.projections ?? {
+    today: 0,
+    week: 0,
+    month: 0,
+    year: 0,
+    is_estimate: true,
+    note: "",
+  };
+  const health = data.health ?? { score: 0, label: "—", observations: [] };
+  const insightLines = data.insights ?? [];
+  const upcoming = data.upcoming_appointments ?? [];
+  const goalsProgress = data.goals_progress ?? {};
 
   return (
     <div className="bp-insights">
@@ -510,7 +574,7 @@ export function DashboardPage() {
             <Delta value={s.occupancy_delta_pct} />
           </div>
         </div>
-        <p className="bp-meta-note">{data.meta.currency_note}</p>
+        <p className="bp-meta-note">{data.meta?.currency_note}</p>
       </section>
 
       <div className="bp-grid-2">
@@ -556,7 +620,7 @@ export function DashboardPage() {
             </div>
             <div className="bp-card__body">
               <div className="bp-breakdown">
-                {data.revenue_breakdown.map((row) => (
+                {revenueBreakdown.map((row) => (
                   <div className="bp-breakdown__row" key={row.key}>
                     <div className="bp-breakdown__meta">
                       <span>
@@ -640,14 +704,14 @@ export function DashboardPage() {
           </Link>
         </div>
         <div className="bp-card__body">
-          {data.top_services.length === 0 ? (
+          {topServices.length === 0 ? (
             <div className="bp-empty" style={{ padding: "24px 0" }}>
               <div className="bp-empty__title">Sin servicios en este periodo</div>
               <div className="bp-empty__text">Cuando completes citas, aparecerán ranking y tendencias.</div>
             </div>
           ) : (
             <div className="bp-svc-grid">
-              {data.top_services.map((svc) => (
+              {topServices.map((svc) => (
                 <div className="bp-svc-card" key={svc.service_type_id}>
                   <p className="bp-svc-card__name">{svc.name}</p>
                   <div className="bp-svc-card__rev">{money(svc.revenue)}</div>
@@ -686,12 +750,12 @@ export function DashboardPage() {
         </div>
         <div className="bp-card__body">
           <div className="bp-staff-grid">
-            {data.staff_performance.map((st) => (
+            {staffPerformance.map((st) => (
               <div className="bp-staff-card" key={st.employee_id}>
                 <div className="bp-staff-card__head">
                   <div className="bp-avatar">{initials(st.display_name)}</div>
                   <div>
-                    <p className="bp-staff-card__name">{st.display_name}</p>
+                    <p className="bp-staff-card__name">{st.display_name || "Staff"}</p>
                     <div className="bp-staff-card__meta">
                       {st.completion_rate != null ? `${st.completion_rate}% completadas` : "Sin citas"}
                     </div>
@@ -735,54 +799,54 @@ export function DashboardPage() {
             <div className="bp-insight-grid">
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Nuevos</div>
-                <div className="bp-metric-tile__value">{data.customers.new}</div>
+                <div className="bp-metric-tile__value">{customers.new}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Recurrentes</div>
-                <div className="bp-metric-tile__value">{data.customers.returning}</div>
+                <div className="bp-metric-tile__value">{customers.returning}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Retención</div>
-                <div className="bp-metric-tile__value">{pct(data.customers.retention_pct)}</div>
+                <div className="bp-metric-tile__value">{pct(customers.retention_pct)}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Frecuencia media</div>
-                <div className="bp-metric-tile__value">{data.customers.avg_visit_frequency}</div>
+                <div className="bp-metric-tile__value">{customers.avg_visit_frequency}</div>
                 <div className="bp-metric-tile__hint">visitas / cliente</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Inactivos 30d</div>
-                <div className="bp-metric-tile__value">{data.customers.inactive_30}</div>
+                <div className="bp-metric-tile__value">{customers.inactive_30}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Inactivos 60d</div>
-                <div className="bp-metric-tile__value">{data.customers.inactive_60}</div>
+                <div className="bp-metric-tile__value">{customers.inactive_60}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Inactivos 90d</div>
-                <div className="bp-metric-tile__value">{data.customers.inactive_90}</div>
+                <div className="bp-metric-tile__value">{customers.inactive_90}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Valor medio</div>
-                <div className="bp-metric-tile__value">{money(data.customers.average_customer_value)}</div>
+                <div className="bp-metric-tile__value">{money(customers.average_customer_value)}</div>
               </div>
             </div>
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              {data.customers.highest_spending ? (
+              {customers.highest_spending ? (
                 <div className="bp-obs__item">
                   <span className="bp-obs__dot bp-obs__dot--positive" />
-                  Mayor gasto: <strong style={{ marginLeft: 4 }}>{data.customers.highest_spending.name}</strong>
+                  Mayor gasto: <strong style={{ marginLeft: 4 }}>{customers.highest_spending.name}</strong>
                   <span className="bp-cell-muted" style={{ marginLeft: "auto" }}>
-                    {moneyExact(data.customers.highest_spending.amount)}
+                    {moneyExact(customers.highest_spending.amount)}
                   </span>
                 </div>
               ) : null}
-              {data.customers.most_loyal ? (
+              {customers.most_loyal ? (
                 <div className="bp-obs__item">
                   <span className="bp-obs__dot bp-obs__dot--info" />
-                  Más leal: <strong style={{ marginLeft: 4 }}>{data.customers.most_loyal.name}</strong>
+                  Más leal: <strong style={{ marginLeft: 4 }}>{customers.most_loyal.name}</strong>
                   <span className="bp-cell-muted" style={{ marginLeft: "auto" }}>
-                    {data.customers.most_loyal.visits} visitas
+                    {customers.most_loyal.visits} visitas
                   </span>
                 </div>
               ) : null}
@@ -798,17 +862,17 @@ export function DashboardPage() {
             </div>
             <span className="bp-badge bp-badge--primary">
               <IconHeart style={{ width: 12, height: 12 }} />
-              {data.health.label}
+              {health.label}
             </span>
           </div>
           <div className="bp-card__body">
             <div className="bp-health">
               <div className="bp-health__score">
-                <strong>{data.health.score}</strong>
+                <strong>{health.score}</strong>
                 <span>de 100</span>
               </div>
               <div className="bp-obs">
-                {data.health.observations.map((o) => (
+                {(health.observations ?? []).map((o) => (
                   <div className="bp-obs__item" key={o.text}>
                     <span className={`bp-obs__dot bp-obs__dot--${o.tone}`} />
                     {o.text}
@@ -836,62 +900,62 @@ export function DashboardPage() {
           <div className="bp-inv-hero">
             <div className="bp-inv-hero__card">
               <span>Costo de inventario</span>
-              <strong>{money(data.inventory.inventory_cost)}</strong>
+              <strong>{money(inventory.inventory_cost)}</strong>
             </div>
             <div className="bp-inv-hero__card">
               <span>Ingreso potencial</span>
-              <strong>{money(data.inventory.potential_revenue)}</strong>
+              <strong>{money(inventory.potential_revenue)}</strong>
             </div>
             <div className="bp-inv-hero__card bp-inv-hero__card--accent">
               <span>Margen bruto proyectado</span>
-              <strong>{money(data.inventory.projected_gross_profit)}</strong>
+              <strong>{money(inventory.projected_gross_profit)}</strong>
             </div>
           </div>
           <div className="bp-insight-grid" style={{ marginTop: 14 }}>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Unidades en stock</div>
-              <div className="bp-metric-tile__value">{data.inventory.products_remaining}</div>
+              <div className="bp-metric-tile__value">{inventory.products_remaining}</div>
             </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Vendidas (periodo)</div>
-              <div className="bp-metric-tile__value">{data.inventory.products_sold ?? 0}</div>
+              <div className="bp-metric-tile__value">{inventory.products_sold ?? 0}</div>
             </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Ingreso productos</div>
-              <div className="bp-metric-tile__value">{money(data.inventory.product_revenue ?? 0)}</div>
+              <div className="bp-metric-tile__value">{money(inventory.product_revenue ?? 0)}</div>
             </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Margen productos</div>
-              <div className="bp-metric-tile__value">{money(data.inventory.product_gross_profit ?? 0)}</div>
+              <div className="bp-metric-tile__value">{money(inventory.product_gross_profit ?? 0)}</div>
             </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Stock bajo</div>
-              <div className="bp-metric-tile__value">{data.inventory.low_stock.length}</div>
+              <div className="bp-metric-tile__value">{(inventory.low_stock ?? []).length}</div>
             </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Agotados</div>
-              <div className="bp-metric-tile__value">{data.inventory.out_of_stock.length}</div>
+              <div className="bp-metric-tile__value">{(inventory.out_of_stock ?? []).length}</div>
             </div>
           </div>
-          {data.inventory.best_selling_product ? (
+          {inventory.best_selling_product ? (
             <div className="bp-obs__item" style={{ marginTop: 14 }}>
               <span className="bp-obs__dot bp-obs__dot--positive" />
-              Más vendido: <strong style={{ marginLeft: 4 }}>{data.inventory.best_selling_product.name}</strong>
+              Más vendido: <strong style={{ marginLeft: 4 }}>{inventory.best_selling_product.name}</strong>
               <span className="bp-cell-muted" style={{ marginLeft: "auto" }}>
-                {data.inventory.best_selling_product.units} uds ·{" "}
-                {moneyExact(data.inventory.best_selling_product.revenue)}
+                {inventory.best_selling_product.units} uds ·{" "}
+                {moneyExact(inventory.best_selling_product.revenue)}
               </span>
             </div>
           ) : null}
-          {(data.inventory.low_stock.length > 0 || data.inventory.out_of_stock.length > 0) && (
+          {((inventory.low_stock ?? []).length > 0 || (inventory.out_of_stock ?? []).length > 0) && (
             <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
-              {data.inventory.out_of_stock.slice(0, 4).map((p) => (
+              {(inventory.out_of_stock ?? []).slice(0, 4).map((p) => (
                 <div className="bp-obs__item" key={p.id}>
                   <span className="bp-obs__dot bp-obs__dot--danger" />
                   Sin stock: {p.name}
                 </div>
               ))}
-              {data.inventory.low_stock.slice(0, 4).map((p) => (
+              {(inventory.low_stock ?? []).slice(0, 4).map((p) => (
                 <div className="bp-obs__item" key={p.id}>
                   <span className="bp-obs__dot bp-obs__dot--warning" />
                   Bajo: {p.name} ({p.stock}/{p.min_stock})
@@ -899,7 +963,7 @@ export function DashboardPage() {
               ))}
             </div>
           )}
-          <p className="bp-meta-note">{data.inventory.note}</p>
+          <p className="bp-meta-note">{inventory.note}</p>
         </div>
       </section>
 
@@ -917,22 +981,22 @@ export function DashboardPage() {
             <div className="bp-insight-grid">
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Hoy</div>
-                <div className="bp-metric-tile__value">{money(data.projections.today)}</div>
+                <div className="bp-metric-tile__value">{money(projections.today)}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Esta semana</div>
-                <div className="bp-metric-tile__value">{money(data.projections.week)}</div>
+                <div className="bp-metric-tile__value">{money(projections.week)}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Este mes</div>
-                <div className="bp-metric-tile__value">{money(data.projections.month)}</div>
+                <div className="bp-metric-tile__value">{money(projections.month)}</div>
               </div>
               <div className="bp-metric-tile">
                 <div className="bp-metric-tile__label">Este año</div>
-                <div className="bp-metric-tile__value">{money(data.projections.year)}</div>
+                <div className="bp-metric-tile__value">{money(projections.year)}</div>
               </div>
             </div>
-            <p className="bp-meta-note">{data.projections.note}</p>
+            <p className="bp-meta-note">{projections.note}</p>
           </div>
         </section>
 
@@ -958,7 +1022,7 @@ export function DashboardPage() {
                 ["monthly_product_sales", "Ventas de producto", true],
               ] as const
             ).map(([key, label, isMoney]) => {
-              const g = data.goals_progress[key];
+              const g = goalsProgress[key];
               if (!g) return null;
               const done = g.pct >= 100;
               const width = Math.min(100, Math.max(0, g.pct));
@@ -1002,7 +1066,7 @@ export function DashboardPage() {
           </div>
           <div className="bp-card__body">
             <ul className="bp-insight-list" style={{ margin: 0, padding: 0 }}>
-              {data.insights.map((t) => (
+              {insightLines.map((t) => (
                 <li key={t}>
                   <IconSparkles style={{ width: 16, height: 16 }} />
                   <span>{t}</span>
@@ -1032,14 +1096,14 @@ export function DashboardPage() {
             </Link>
           </div>
           <div className="bp-card__body" style={{ paddingTop: 8 }}>
-            {data.upcoming_appointments.length === 0 ? (
+            {upcoming.length === 0 ? (
               <div className="bp-empty" style={{ padding: "20px 0" }}>
                 <div className="bp-empty__title">Agenda libre</div>
                 <div className="bp-empty__text">No hay citas próximas. Es buen momento para llenar huecos.</div>
               </div>
             ) : (
               <div className="bp-appt-list">
-                {data.upcoming_appointments.map((a) => (
+                {upcoming.map((a) => (
                   <div className="bp-appt-card" key={a.id}>
                     <div className="bp-appt-card__rail bp-appt-card__rail--scheduled" />
                     <div>

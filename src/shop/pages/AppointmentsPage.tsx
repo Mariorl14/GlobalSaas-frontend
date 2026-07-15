@@ -52,7 +52,8 @@ function railClass(status: string): string {
   return `bp-appt-card__rail bp-appt-card__rail--${s}`;
 }
 
-function initials(name: string): string {
+function initials(name: string | null | undefined): string {
+  if (!name?.trim()) return "?";
   return name
     .split(/\s+/)
     .filter(Boolean)

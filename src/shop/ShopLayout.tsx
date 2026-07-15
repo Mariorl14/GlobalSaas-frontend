@@ -23,6 +23,7 @@ import {
   IconActivity,
 } from "./icons";
 import { unlockShopAudio } from "./sound";
+import { ShopErrorBoundary } from "./ShopErrorBoundary";
 import "./shop.css";
 
 type BizBrief = {
@@ -203,7 +204,13 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
           <div className="bp-brand">
             <div className="bp-brand__avatar">
               {mediaUrl(biz?.logo_url) ? (
-                <img src={mediaUrl(biz?.logo_url) ?? ""} alt="" />
+                <img
+                  src={mediaUrl(biz?.logo_url) ?? ""}
+                  alt=""
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
               ) : (
                 initials.charAt(0)
               )}
@@ -345,7 +352,9 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
           </header>
 
           <main className="bp-content">
-            <Outlet />
+            <ShopErrorBoundary>
+              <Outlet />
+            </ShopErrorBoundary>
           </main>
         </div>
       </div>
