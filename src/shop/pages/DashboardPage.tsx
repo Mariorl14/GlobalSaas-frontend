@@ -318,9 +318,10 @@ export function DashboardPage() {
       }
       const res = await axios.get<InsightsPayload>(`${API_BASE_URL}/api/shop/insights`, {
         params,
+        timeout: 25000,
       });
       setData(res.data);
-      setGoalForm(res.data.goals);
+      if (res.data.goals) setGoalForm(res.data.goals);
     } catch {
       setErr("No se pudieron cargar los insights del negocio.");
     }
