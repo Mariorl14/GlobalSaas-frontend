@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 import {
   IconPlus,
   IconEdit,
@@ -48,8 +49,6 @@ type UserForm = {
   is_active: boolean;
   business_id: string;
 };
-
-const API_BASE_URL = "http://127.0.0.1:5000";
 
 function normalizeUsersPayload(data: unknown): ApiUser[] {
   if (!data) return [];

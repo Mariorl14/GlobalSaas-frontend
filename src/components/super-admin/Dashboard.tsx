@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 import type { MenuItem } from "./Menu";
 import {
   IconShop,
@@ -10,8 +11,6 @@ import {
   IconChevronRight,
   IconTrendUp,
 } from "./icons";
-
-const API_BASE_URL = "http://127.0.0.1:5000";
 
 type BusinessRow = {
   id: string;

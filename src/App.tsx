@@ -33,6 +33,7 @@ import { SalesPage } from "./shop/pages/SalesPage.tsx";
 import { StaffPage } from "./shop/pages/StaffPage.tsx";
 import { SettingsPage } from "./shop/pages/SettingsPage.tsx";
 import { PublicBarberBookingPage } from "./public-booking/PublicBarberBookingPage.tsx";
+import { API_BASE_URL } from "./config";
 
 function PostLoginRedirect() {
   const u = session.getUser();
@@ -145,7 +146,7 @@ function DashboardLayout({
       navigate("/login", { replace: true });
       return;
     }
-    axios.get("http://127.0.0.1:5000/api/health").then((res) => {
+    axios.get(`${API_BASE_URL}/api/health`).then((res) => {
       setMessage(res.data.status);
     });
   }, [activeItem, isAuthenticated, navigate, onLogout]);

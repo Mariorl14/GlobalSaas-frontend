@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 import {
   IconPlus,
   IconEdit,
@@ -35,8 +36,6 @@ type PlanForm = {
   max_employees: string;
   max_appointments: string;
 };
-
-const API_BASE_URL = "http://127.0.0.1:5000";
 
 function formatPrice(value: number): string {
   return new Intl.NumberFormat("es-MX", {

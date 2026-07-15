@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { mediaUrl } from "../../mediaUrl";
+import { API_BASE_URL } from "../../config";
 import {
   IconPlus,
   IconEdit,
@@ -80,8 +81,6 @@ type BusinessForm = {
   timezone: string;
   whatsapp: string;
 };
-
-const API_BASE_URL = "http://127.0.0.1:5000";
 
 /** UI catalog only — not persisted until backend supports it. */
 const BUSINESS_TYPES: { value: string; label: string }[] = [
