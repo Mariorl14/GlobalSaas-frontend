@@ -5,9 +5,18 @@ import { session } from "../auth/session";
 axios.interceptors.request.use((config) => {
   const token = session.getToken();
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    delete config.headers.Authorization;
+    if (typeof config.headers?.set === "function") {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    } else {
+      config.headers = config.headers ?? {};
+      (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+  } else if (config.headers) {
+    if (typeof config.headers.delete === "function") {
+      config.headers.delete("Authorization");
+    } else {
+      delete (config.headers as Record<string, unknown>).Authorization;
+    }
   }
   return config;
 });

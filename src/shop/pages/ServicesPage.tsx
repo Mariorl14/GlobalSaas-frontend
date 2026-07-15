@@ -83,8 +83,15 @@ export function ServicesPage() {
       }
       reset();
       await load();
-    } catch {
-      setErr("No se pudo guardar.");
+    } catch (e: unknown) {
+      const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+      if (status === 401) {
+        setErr("Sesión expirada o no autorizada. Cierra sesión e inicia de nuevo en el portal.");
+      } else if (status === 403) {
+        setErr("No tienes permiso para guardar servicios.");
+      } else {
+        setErr("No se pudo guardar.");
+      }
     }
   };
 
