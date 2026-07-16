@@ -135,6 +135,7 @@ export function AppointmentsPage() {
     first_name: "",
     last_name: "",
     phone: "",
+    email: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -207,7 +208,7 @@ export function AppointmentsPage() {
       notes: "",
     });
     setClientMode("existing");
-    setNewClient({ first_name: "", last_name: "", phone: "" });
+    setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
     setErr(null);
   };
 
@@ -225,6 +226,7 @@ export function AppointmentsPage() {
         const fn = newClient.first_name.trim();
         const ln = newClient.last_name.trim() || "—";
         const phone = newClient.phone.trim();
+        const email = newClient.email.trim();
         if (!fn || !phone) {
           setErr("Para un cliente nuevo indica al menos nombre y teléfono.");
           return;
@@ -233,6 +235,7 @@ export function AppointmentsPage() {
           first_name: fn,
           last_name: ln,
           phone,
+          ...(email ? { email } : {}),
         });
         clientId = created.data.id;
         await loadRefs();
@@ -632,6 +635,18 @@ export function AppointmentsPage() {
                       value={newClient.phone}
                       onChange={(e) =>
                         setNewClient((c) => ({ ...c, phone: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="bp-field" style={{ gridColumn: "1 / -1" }}>
+                    <label className="bp-label">Email (opcional)</label>
+                    <input
+                      className="bp-input"
+                      type="email"
+                      placeholder="Para enviar confirmación por correo"
+                      value={newClient.email}
+                      onChange={(e) =>
+                        setNewClient((c) => ({ ...c, email: e.target.value }))
                       }
                     />
                   </div>
