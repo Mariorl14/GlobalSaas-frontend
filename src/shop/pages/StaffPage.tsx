@@ -4,6 +4,7 @@ import { API_BASE_URL } from "../../config";
 import { session } from "../../auth/session";
 import { isShopAdmin } from "../../auth/roles";
 import { IconTeam, IconEdit, IconClose, IconAlert } from "../icons";
+import { staffLabel } from "../staffLabel";
 
 type StaffRow = {
   employee_id: string;
@@ -11,19 +12,21 @@ type StaffRow = {
   email: string | null;
   role: string | null;
   display_name: string | null;
+  label?: string | null;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   phone: string | null;
   is_active: boolean;
 };
 
 function initials(row: StaffRow): string {
-  if (row.display_name) {
-    return row.display_name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("");
-  }
-  return (row.email ?? "?").slice(0, 2).toUpperCase();
+  const name = staffLabel(row);
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 export function StaffPage() {
@@ -129,7 +132,7 @@ export function StaffPage() {
                   </div>
                   <div>
                     <h3 className="bp-product-card__name">
-                      {r.display_name || r.email?.split("@")[0] || "Staff"}
+                      {staffLabel(r)}
                     </h3>
                     <p className="bp-product-card__meta">{r.email}</p>
                   </div>

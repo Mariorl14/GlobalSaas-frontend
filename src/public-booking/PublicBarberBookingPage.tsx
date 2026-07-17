@@ -4,6 +4,7 @@ import { mediaUrl } from "../mediaUrl";
 import {
   fetchAvailability,
   fetchCalendarHints,
+  fetchCustomerMe,
   fetchPublicBarbers,
   fetchPublicBusiness,
   fetchPublicServices,
@@ -17,9 +18,11 @@ import { BarberSelector } from "./BarberSelector";
 import { BookingCalendar } from "./BookingCalendar";
 import { BookingSuccessState } from "./BookingSuccessState";
 import { BookingSummary } from "./BookingSummary";
+import { CustomerAccountPanel, customerFromAccount } from "./CustomerAccountPanel";
 import { CustomerBookingForm, type CustomerFormValues } from "./CustomerBookingForm";
 import { ServiceSelector } from "./ServiceSelector";
 import { TimeSlotPicker } from "./TimeSlotPicker";
+import { customerSession, type PublicClient } from "./customerSession";
 import { isPublicCustomerStepValid } from "./bookingFormValidation";
 import "./public-booking.css";
 
@@ -56,6 +59,7 @@ export function PublicBarberBookingPage() {
     email: "",
     notes: "",
   });
+  const [clientAccount, setClientAccount] = useState<PublicClient | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [successId, setSuccessId] = useState<string | null>(null);
@@ -84,6 +88,25 @@ export function PublicBarberBookingPage() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (!slug) return;
+    const cached = customerSession.getClient(slug);
+    if (cached) {
+      setClientAccount(cached);
+      setCustomer((prev) => customerFromAccount(cached, prev.notes));
+    }
+    void fetchCustomerMe(slug)
+      .then((c) => {
+        if (!c) return;
+        setClientAccount(c);
+        setCustomer((prev) => customerFromAccount(c, prev.notes));
+      })
+      .catch(() => {
+        customerSession.clear(slug);
+        setClientAccount(null);
+      });
+  }, [slug]);
 
   useEffect(() => {
     if (!biz?.allow_any_barber && barbers.length > 0 && !employeeId) {
@@ -167,13 +190,11 @@ export function PublicBarberBookingPage() {
     setEmployeeId("");
     setSelectedDate("");
     setSlotStart("");
-    setCustomer({
-      first_name: "",
-      last_name: "",
-      phone: "",
-      email: "",
-      notes: "",
-    });
+    setCustomer(
+      clientAccount
+        ? customerFromAccount(clientAccount)
+        : { first_name: "", last_name: "", phone: "", email: "", notes: "" },
+    );
   };
 
   const handleConfirmBooking = async () => {
@@ -358,7 +379,28 @@ export function PublicBarberBookingPage() {
 
           {step === 3 && (
             <div className="pb-step-stack">
-              <CustomerBookingForm value={customer} onChange={setCustomer} />
+              <CustomerAccountPanel
+                slug={slug}
+                client={clientAccount}
+                customer={customer}
+                onCustomerChange={setCustomer}
+                onAuthed={(c) => {
+                  setClientAccount(c);
+                  setCustomer((prev) => customerFromAccount(c, prev.notes));
+                }}
+                onLogout={() => {
+                  customerSession.clear(slug);
+                  setClientAccount(null);
+                  setCustomer({
+                    first_name: "",
+                    last_name: "",
+                    phone: "",
+                    email: "",
+                    notes: "",
+                  });
+                }}
+                form={<CustomerBookingForm value={customer} onChange={setCustomer} />}
+              />
               <div className="pb-actions" style={{ marginTop: 0 }}>
                 <button type="button" className="pb-btn pb-btn-secondary" onClick={() => setStep(2)}>
                   Atrás

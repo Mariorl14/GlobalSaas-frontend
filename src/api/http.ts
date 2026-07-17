@@ -1,8 +1,13 @@
 import axios from "axios";
 import { session } from "../auth/session";
 
-/** Attach JWT on every request from localStorage (avoids race with React effects). */
+/** Attach shop JWT on every request (skip public booking — uses customer token when set). */
 axios.interceptors.request.use((config) => {
+  const url = `${config.baseURL ?? ""}${config.url ?? ""}`;
+  if (url.includes("/api/public/")) {
+    return config;
+  }
+
   const token = session.getToken();
   if (token) {
     if (typeof config.headers?.set === "function") {

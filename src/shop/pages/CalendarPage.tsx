@@ -10,6 +10,7 @@ import {
   IconClose,
   IconPlus,
 } from "../icons";
+import { staffLabel } from "../staffLabel";
 
 type Appointment = {
   id: string;
@@ -29,6 +30,10 @@ type StaffOpt = {
   employee_id: string;
   email: string | null;
   display_name: string | null;
+  label?: string | null;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 };
 type SvcOpt = { id: string; name?: string };
 
@@ -187,10 +192,10 @@ export function CalendarPage() {
   }, [load]);
 
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? "Servicio";
-  const staffLabel = (id: string) => {
+  const resolveStaffLabel = (id: string) => {
     const s = staff.find((x) => x.employee_id === id);
     if (!s) return "Staff";
-    return s.display_name?.trim() || s.email?.split("@")[0] || "Staff";
+    return staffLabel(s);
   };
 
   const dayItems = useMemo(() => {
@@ -333,7 +338,7 @@ export function CalendarPage() {
             <option value="">Todo el equipo</option>
             {staff.map((s) => (
               <option key={s.employee_id} value={s.employee_id}>
-                {s.display_name?.trim() || s.email?.split("@")[0] || "Staff"}
+                {staffLabel(s)}
               </option>
             ))}
           </select>
@@ -403,7 +408,7 @@ export function CalendarPage() {
                 >
                   <strong>{a.client_name}</strong>
                   <span>{serviceName(a.service_type_id)}</span>
-                  <span>{staffLabel(a.employee_id)}</span>
+                  <span>{resolveStaffLabel(a.employee_id)}</span>
                 </button>
               );
             })}
@@ -487,7 +492,7 @@ export function CalendarPage() {
               </div>
               <div className="bp-field">
                 <label className="bp-label">Barbero</label>
-                <div>{staffLabel(selected.employee_id)}</div>
+                <div>{resolveStaffLabel(selected.employee_id)}</div>
               </div>
               <div className="bp-field__row">
                 <div className="bp-field">

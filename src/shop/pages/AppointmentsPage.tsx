@@ -11,6 +11,7 @@ import {
   IconSearch,
 } from "../icons";
 import { playAppointmentChime, unlockShopAudio } from "../sound";
+import { staffLabel } from "../staffLabel";
 
 type Appointment = {
   id: string;
@@ -120,7 +121,7 @@ export function AppointmentsPage() {
   const [clients, setClients] = useState<Opt[]>([]);
   const [services, setServices] = useState<Opt[]>([]);
   const [staff, setStaff] = useState<
-    { employee_id: string; email: string | null; display_name: string | null }[]
+    { employee_id: string; email: string | null; display_name: string | null; label?: string | null; full_name?: string | null; first_name?: string | null; last_name?: string | null }[]
   >([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -304,11 +305,11 @@ export function AppointmentsPage() {
     [services],
   );
 
-  const staffLabel = useCallback(
+  const resolveStaffLabel = useCallback(
     (id: string) => {
       const s = staff.find((x) => x.employee_id === id);
       if (!s) return "Staff";
-      return s.display_name?.trim() || s.email?.split("@")[0] || "Staff";
+      return staffLabel(s);
     },
     [staff],
   );
@@ -492,7 +493,7 @@ export function AppointmentsPage() {
                         </div>
                         <div className="bp-appt-card__client">{a.client_name}</div>
                         <div className="bp-appt-card__meta">
-                          {serviceName(a.service_type_id)} · {staffLabel(a.employee_id)}
+                          {serviceName(a.service_type_id)} · {resolveStaffLabel(a.employee_id)}
                           {a.notes ? ` · ${a.notes}` : ""}
                         </div>
                       </div>
@@ -677,7 +678,7 @@ export function AppointmentsPage() {
                   <option value="">Selecciona staff</option>
                   {staff.map((s) => (
                     <option key={s.employee_id} value={s.employee_id}>
-                      {s.display_name?.trim() || s.email?.split("@")[0] || "Staff"}
+                      {staffLabel(s)}
                     </option>
                   ))}
                 </select>

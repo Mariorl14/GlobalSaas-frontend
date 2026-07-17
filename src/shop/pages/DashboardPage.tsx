@@ -4,6 +4,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../../config";
 import { session } from "../../auth/session";
 import { isShopAdmin } from "../../auth/roles";
+import { userDisplayName } from "../staffLabel";
 import {
   IconCalendar,
   IconUsers,
@@ -317,8 +318,7 @@ export function DashboardPage() {
   const [savingGoals, setSavingGoals] = useState(false);
 
   const admin = isShopAdmin(session.getUser());
-  const name =
-    session.getUser()?.email?.split("@")[0]?.replace(/[._]/g, " ") ?? "equipo";
+  const name = userDisplayName(session.getUser()).replace(/[._]/g, " ") || "equipo";
 
   const load = useCallback(async () => {
     setErr(null);

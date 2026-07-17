@@ -9,6 +9,7 @@ import {
   IconSearch,
   IconTrash,
 } from "../icons";
+import { staffLabel } from "../staffLabel";
 
 type Sale = {
   id: string;
@@ -43,6 +44,10 @@ type StaffOpt = {
   employee_id: string;
   email: string | null;
   display_name: string | null;
+  label?: string | null;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 };
 
 type Period = "today" | "yesterday" | "week" | "month" | "custom";
@@ -431,7 +436,7 @@ export function SalesPage() {
           <option value="">Todos los barberos</option>
           {staff.map((s) => (
             <option key={s.employee_id} value={s.employee_id}>
-              {s.display_name?.trim() || s.email?.split("@")[0] || "Staff"}
+              {staffLabel(s)}
             </option>
           ))}
         </select>
@@ -552,7 +557,7 @@ export function SalesPage() {
                     <option value="">Sin asignar</option>
                     {staff.map((s) => (
                       <option key={s.employee_id} value={s.employee_id}>
-                        {s.display_name?.trim() || s.email?.split("@")[0] || "Staff"}
+                        {staffLabel(s)}
                       </option>
                     ))}
                   </select>

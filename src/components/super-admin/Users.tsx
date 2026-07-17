@@ -27,6 +27,9 @@ type ApiUserEmployee = { business_id?: string | null } | null;
 type ApiUser = {
   id: string;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
   role: "admin" | "employee" | string;
   is_active: boolean;
   business_id?: string | null;
@@ -43,6 +46,8 @@ type UsersListResponse = {
 };
 
 type UserForm = {
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
   role: "admin" | "employee";
@@ -105,6 +110,8 @@ export const Users: React.FC = () => {
 
   const emptyForm: UserForm = useMemo(
     () => ({
+      first_name: "",
+      last_name: "",
       email: "",
       password: "",
       role: "employee",
@@ -172,6 +179,8 @@ export const Users: React.FC = () => {
       setSelectedBusinessId(bId);
       setForm((f) => ({
         ...f,
+        first_name: api.first_name ?? "",
+        last_name: api.last_name ?? "",
         email: api.email ?? "",
         password: "",
         role: (api.role === "admin" ? "admin" : "employee") as "admin" | "employee",
@@ -188,6 +197,7 @@ export const Users: React.FC = () => {
 
   const validate = useCallback(() => {
     const missing: string[] = [];
+    if (!form.first_name.trim()) missing.push("Nombre");
     if (!form.email.trim()) missing.push("Email");
     if (mode === "create" && !form.password) missing.push("Contraseña");
     if (!form.business_id) missing.push("Negocio");
@@ -207,6 +217,8 @@ export const Users: React.FC = () => {
       if (mode === "create") {
         await axios.post(`${API_BASE_URL}/api/users`, {
           user: {
+            first_name: form.first_name.trim(),
+            last_name: form.last_name.trim() || undefined,
             email: form.email.trim(),
             password: form.password,
             role: form.role,
@@ -218,12 +230,15 @@ export const Users: React.FC = () => {
         });
       } else {
         if (!selectedId) throw new Error("Missing selectedId");
-        const userPatch: Record<string, unknown> = {};
+        const userPatch: Record<string, unknown> = {
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim() || null,
+          is_active: form.is_active,
+          role: form.role,
+        };
 
         if (form.email.trim()) userPatch.email = form.email.trim();
-        userPatch.is_active = form.is_active;
         if (form.password) userPatch.password = form.password;
-        userPatch.role = form.role;
 
         await axios.put(`${API_BASE_URL}/api/users/${selectedId}`, { user: userPatch });
       }
@@ -292,7 +307,10 @@ export const Users: React.FC = () => {
   const visibleItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((u) => u.email.toLowerCase().includes(q));
+    return items.filter((u) => {
+      const name = `${u.first_name || ""} ${u.last_name || ""} ${u.full_name || ""}`.toLowerCase();
+      return name.includes(q) || u.email.toLowerCase().includes(q);
+    });
   }, [items, search]);
 
   return (
@@ -304,7 +322,7 @@ export const Users: React.FC = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por email…"
+            placeholder="Buscar por nombre o email…"
           />
         </div>
 
@@ -365,6 +383,7 @@ export const Users: React.FC = () => {
           <table className="sa-table">
             <thead>
               <tr>
+                <th>Nombre</th>
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Negocio</th>
@@ -376,7 +395,7 @@ export const Users: React.FC = () => {
               {loading && items.length === 0 ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={`sk-${i}`}>
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: 6 }).map((__, j) => (
                       <td key={j}>
                         <span className="sa-skeleton" style={{ width: `${55 + ((i + j) % 3) * 12}%` }} />
                       </td>
@@ -385,7 +404,7 @@ export const Users: React.FC = () => {
                 ))
               ) : visibleItems.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 0 }}>
+                  <td colSpan={6} style={{ padding: 0 }}>
                     <div className="sa-empty">
                       <div className="sa-empty__icon">
                         <IconUsers />
@@ -412,9 +431,14 @@ export const Users: React.FC = () => {
                   const bId = getBusinessId(u);
                   const bName = bId ? businessNameById.get(bId) : undefined;
                   const isAdmin = u.role === "admin";
+                  const displayName =
+                    (u.full_name || "").trim() ||
+                    [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+                    "—";
                   return (
                     <tr key={u.id}>
-                      <td className="sa-cell-strong">{u.email}</td>
+                      <td className="sa-cell-strong">{displayName}</td>
+                      <td>{u.email}</td>
                       <td>
                         <span className={`sa-badge ${isAdmin ? "sa-badge--primary" : "sa-badge--neutral"}`}>
                           {isAdmin ? "Admin" : "Empleado"}
@@ -476,8 +500,8 @@ export const Users: React.FC = () => {
                 </h2>
                 <p className="sa-panel__subtitle">
                   {mode === "create"
-                    ? "Crea un usuario y su empleado asociado (requiere un negocio)."
-                    : "Actualiza email, contraseña, rol y estado. El negocio no se puede cambiar."}
+                    ? "Crea un usuario con nombre y su empleado asociado (requiere un negocio)."
+                    : "Actualiza nombre, email, contraseña, rol y estado. El negocio no se puede cambiar."}
                 </p>
               </div>
               <button type="button" className="sa-icon-btn" onClick={closePanel} aria-label="Cerrar">
@@ -492,6 +516,26 @@ export const Users: React.FC = () => {
                   <span>{error}</span>
                 </div>
               ) : null}
+
+              <div className="sa-field">
+                <label className="sa-label">Nombre</label>
+                <input
+                  className="sa-input"
+                  value={form.first_name}
+                  onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+                  placeholder="Nombre"
+                />
+              </div>
+
+              <div className="sa-field">
+                <label className="sa-label">Apellido</label>
+                <input
+                  className="sa-input"
+                  value={form.last_name}
+                  onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Apellido"
+                />
+              </div>
 
               <div className="sa-field">
                 <label className="sa-label">Email</label>

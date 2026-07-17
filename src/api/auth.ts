@@ -6,6 +6,9 @@ const API_BASE = `${API_BASE_URL}/api`;
 export interface AuthUser {
   business_id: string | null;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
   id: string;
   is_active: boolean;
   role: string;

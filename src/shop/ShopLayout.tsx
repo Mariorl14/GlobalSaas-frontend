@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { session } from "../auth/session";
+import { userDisplayName } from "./staffLabel";
 import { isShopUser, isSuperAdmin } from "../auth/roles";
 import { API_BASE_URL } from "../config";
 import { mediaUrl } from "../mediaUrl";
@@ -186,7 +187,7 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
     return <Navigate to="/shop/login" replace />;
   }
 
-  const display = user.email?.split("@")[0] ?? "Usuario";
+  const display = userDisplayName(user);
   const roleLabel = user.role === "admin" ? "Administrador" : "Staff";
   const initials = (biz?.name || display).slice(0, 2).toUpperCase();
   const pageTitle = PAGE_TITLES[location.pathname] ?? "Panel";
@@ -320,7 +321,8 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
                 {profileOpen ? (
                   <div className="bp-menu">
                     <div className="bp-menu__header">
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{user.email}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{display}</div>
+                      <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>{user.email}</div>
                       <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>{roleLabel}</div>
                     </div>
                     <button
