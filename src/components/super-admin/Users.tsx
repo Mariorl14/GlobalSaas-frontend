@@ -45,12 +45,14 @@ type UsersListResponse = {
   items: ApiUserEnvelope[] | ApiUser[];
 };
 
+type UserRole = "admin" | "employee" | "superadmin";
+
 type UserForm = {
   first_name: string;
   last_name: string;
   email: string;
   password: string;
-  role: "admin" | "employee";
+  role: UserRole;
   is_active: boolean;
   business_id: string;
 };
@@ -103,7 +105,7 @@ export const Users: React.FC = () => {
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
 
-  const [filterRole, setFilterRole] = useState<"" | "admin" | "employee">("");
+  const [filterRole, setFilterRole] = useState<"" | UserRole>("");
   const [filterBusinessId, setFilterBusinessId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -183,7 +185,13 @@ export const Users: React.FC = () => {
         last_name: api.last_name ?? "",
         email: api.email ?? "",
         password: "",
-        role: (api.role === "admin" ? "admin" : "employee") as "admin" | "employee",
+        role: (
+          api.role === "superadmin"
+            ? "superadmin"
+            : api.role === "admin"
+              ? "admin"
+              : "employee"
+        ) as UserRole,
         is_active: Boolean(api.is_active),
         business_id: bId ?? "",
       }));
@@ -200,7 +208,7 @@ export const Users: React.FC = () => {
     if (!form.first_name.trim()) missing.push("Nombre");
     if (!form.email.trim()) missing.push("Email");
     if (mode === "create" && !form.password) missing.push("Contraseña");
-    if (!form.business_id) missing.push("Negocio");
+    if (form.role !== "superadmin" && !form.business_id) missing.push("Negocio");
     return missing;
   }, [form, mode]);
 
@@ -215,7 +223,7 @@ export const Users: React.FC = () => {
     setError("");
     try {
       if (mode === "create") {
-        await axios.post(`${API_BASE_URL}/api/users`, {
+        const body: Record<string, unknown> = {
           user: {
             first_name: form.first_name.trim(),
             last_name: form.last_name.trim() || undefined,
@@ -224,10 +232,11 @@ export const Users: React.FC = () => {
             role: form.role,
             is_active: form.is_active,
           },
-          employee: {
-            business_id: form.business_id,
-          },
-        });
+        };
+        if (form.role !== "superadmin") {
+          body.employee = { business_id: form.business_id };
+        }
+        await axios.post(`${API_BASE_URL}/api/users`, body);
       } else {
         if (!selectedId) throw new Error("Missing selectedId");
         const userPatch: Record<string, unknown> = {
@@ -345,10 +354,11 @@ export const Users: React.FC = () => {
           className="sa-select"
           style={{ width: 160 }}
           value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value as "" | "admin" | "employee")}
+          onChange={(e) => setFilterRole(e.target.value as "" | UserRole)}
           disabled={loading}
         >
           <option value="">Todos los roles</option>
+          <option value="superadmin">SuperAdmin</option>
           <option value="admin">Admin</option>
           <option value="employee">Empleado</option>
         </select>
@@ -430,25 +440,30 @@ export const Users: React.FC = () => {
                 visibleItems.map((u) => {
                   const bId = getBusinessId(u);
                   const bName = bId ? businessNameById.get(bId) : undefined;
+                  const isSuper = u.role === "superadmin";
                   const isAdmin = u.role === "admin";
                   const displayName =
                     (u.full_name || "").trim() ||
                     [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
                     "—";
+                  const roleLabel = isSuper ? "SuperAdmin" : isAdmin ? "Admin" : "Empleado";
+                  const roleBadge = isSuper
+                    ? "sa-badge--primary"
+                    : isAdmin
+                      ? "sa-badge--primary"
+                      : "sa-badge--neutral";
                   return (
                     <tr key={u.id}>
                       <td className="sa-cell-strong">{displayName}</td>
                       <td>{u.email}</td>
                       <td>
-                        <span className={`sa-badge ${isAdmin ? "sa-badge--primary" : "sa-badge--neutral"}`}>
-                          {isAdmin ? "Admin" : "Empleado"}
-                        </span>
+                        <span className={`sa-badge ${roleBadge}`}>{roleLabel}</span>
                       </td>
                       <td>
                         <div className="sa-cell-strong">
-                          {bName || (bId ? "Negocio (sin nombre)" : "—")}
+                          {isSuper ? "—" : bName || (bId ? "Negocio (sin nombre)" : "—")}
                         </div>
-                        {bId ? <div className="sa-cell-muted">{bId}</div> : null}
+                        {!isSuper && bId ? <div className="sa-cell-muted">{bId}</div> : null}
                       </td>
                       <td>
                         <span className={`sa-badge ${u.is_active ? "sa-badge--success" : "sa-badge--neutral"}`}>
@@ -500,8 +515,12 @@ export const Users: React.FC = () => {
                 </h2>
                 <p className="sa-panel__subtitle">
                   {mode === "create"
-                    ? "Crea un usuario con nombre y su empleado asociado (requiere un negocio)."
-                    : "Actualiza nombre, email, contraseña, rol y estado. El negocio no se puede cambiar."}
+                    ? form.role === "superadmin"
+                      ? "Crea un SuperAdmin con acceso al panel global (sin negocio)."
+                      : "Crea un usuario de negocio con nombre y empleado asociado."
+                    : form.role === "superadmin"
+                      ? "Actualiza datos del SuperAdmin. No pertenece a un negocio."
+                      : "Actualiza nombre, email, contraseña, rol y estado. El negocio no se puede cambiar."}
                 </p>
               </div>
               <button type="button" className="sa-icon-btn" onClick={closePanel} aria-label="Cerrar">
@@ -563,40 +582,58 @@ export const Users: React.FC = () => {
               <div className="sa-field">
                 <label className="sa-label">Rol</label>
                 <div className="sa-segment">
-                  {(["admin", "employee"] as const).map((r) => (
+                  {(
+                    [
+                      { id: "superadmin", label: "SuperAdmin" },
+                      { id: "admin", label: "Admin" },
+                      { id: "employee", label: "Empleado" },
+                    ] as const
+                  ).map((r) => (
                     <button
-                      key={r}
+                      key={r.id}
                       type="button"
-                      className={`sa-segment__opt${form.role === r ? " sa-segment__opt--active" : ""}`}
-                      onClick={() => setForm((f) => ({ ...f, role: r }))}
+                      className={`sa-segment__opt${form.role === r.id ? " sa-segment__opt--active" : ""}`}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          role: r.id,
+                          business_id: r.id === "superadmin" ? "" : f.business_id,
+                        }))
+                      }
                     >
-                      {r === "admin" ? "Admin" : "Empleado"}
+                      {r.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="sa-field">
-                <label className="sa-label">Negocio</label>
-                <select
-                  className="sa-select"
-                  value={form.business_id}
-                  onChange={(e) => setForm((f) => ({ ...f, business_id: e.target.value }))}
-                  disabled={loading || mode === "edit"}
-                >
-                  <option value="">Selecciona un negocio…</option>
-                  {businesses.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} {b.is_active ? "" : "(inactiva)"}
-                    </option>
-                  ))}
-                </select>
-                {mode === "edit" && selectedBusinessId ? (
-                  <span className="sa-hint">
-                    Asociada a: <b>{businessNameById.get(selectedBusinessId) || "—"}</b>
-                  </span>
-                ) : null}
-              </div>
+              {form.role !== "superadmin" ? (
+                <div className="sa-field">
+                  <label className="sa-label">Negocio</label>
+                  <select
+                    className="sa-select"
+                    value={form.business_id}
+                    onChange={(e) => setForm((f) => ({ ...f, business_id: e.target.value }))}
+                    disabled={loading || mode === "edit"}
+                  >
+                    <option value="">Selecciona un negocio…</option>
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} {b.is_active ? "" : "(inactiva)"}
+                      </option>
+                    ))}
+                  </select>
+                  {mode === "edit" && selectedBusinessId ? (
+                    <span className="sa-hint">
+                      Asociada a: <b>{businessNameById.get(selectedBusinessId) || "—"}</b>
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="sa-hint" style={{ marginTop: 0 }}>
+                  Los SuperAdmin acceden al panel global y no se asocian a un negocio.
+                </p>
+              )}
 
               <label className="sa-switch-row">
                 <span className="sa-switch-row__text">Activo</span>
