@@ -1297,6 +1297,67 @@
   gap: 16px;
 }
 
+.bp-hours-editor {
+  display: grid;
+  gap: 14px;
+}
+.bp-hours-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bp-hours-editor__list {
+  display: grid;
+  gap: 8px;
+}
+.bp-hours-editor__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius-md, 10px);
+  background: var(--bp-bg, #f8fafc);
+}
+.bp-hours-editor__day {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bp-text);
+  cursor: pointer;
+  user-select: none;
+}
+.bp-hours-editor__times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bp-hours-editor__times .bp-input {
+  width: auto;
+  min-width: 7.5rem;
+}
+.bp-hours-editor__sep {
+  color: var(--bp-text-tertiary, #94a3b8);
+  font-size: 0.85rem;
+}
+.bp-hours-editor__closed {
+  color: var(--bp-text-tertiary, #94a3b8);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 560px) {
+  .bp-hours-editor__row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 .bp-timeline {
   display: flex;
   flex-direction: column;

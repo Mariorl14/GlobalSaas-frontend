@@ -5,6 +5,14 @@ import { session } from "../../auth/session";
 import { isShopAdmin } from "../../auth/roles";
 import { IconTeam, IconEdit, IconClose, IconAlert } from "../icons";
 import { staffLabel } from "../staffLabel";
+import { BusinessHoursEditor } from "../BusinessHoursEditor";
+import {
+  parseBusinessHoursJson,
+  serializeWeeklySchedule,
+  summarizeWorkDays,
+  validateWeeklySchedule,
+  type WeeklySchedule,
+} from "../businessHours";
 
 type StaffRow = {
   employee_id: string;
@@ -18,6 +26,8 @@ type StaffRow = {
   last_name?: string | null;
   phone: string | null;
   is_active: boolean;
+  work_hours_json?: string | null;
+  follows_business_hours?: boolean;
 };
 
 function initials(row: StaffRow): string {
@@ -34,6 +44,8 @@ export function StaffPage() {
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ display_name: "", phone: "", is_active: true });
+  const [followBusinessHours, setFollowBusinessHours] = useState(true);
+  const [hours, setHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
   const [panelOpen, setPanelOpen] = useState(false);
   const admin = isShopAdmin(session.getUser());
 
@@ -57,6 +69,10 @@ export function StaffPage() {
       phone: r.phone ?? "",
       is_active: r.is_active,
     });
+    const follows =
+      r.follows_business_hours ?? !(r.work_hours_json && r.work_hours_json.trim());
+    setFollowBusinessHours(follows);
+    setHours(parseBusinessHoursJson(r.work_hours_json));
     setErr(null);
     setPanelOpen(true);
   };
@@ -69,16 +85,32 @@ export function StaffPage() {
 
   const save = async () => {
     if (!editing) return;
+
+    let work_hours_json: string | null = null;
+    if (!followBusinessHours) {
+      const hoursErr = validateWeeklySchedule(hours);
+      if (hoursErr) {
+        setErr(hoursErr);
+        return;
+      }
+      work_hours_json = serializeWeeklySchedule(hours);
+    }
+
     try {
       await axios.put(`${API_BASE_URL}/api/shop/staff/${editing}`, {
         display_name: form.display_name.trim() || null,
         phone: form.phone.trim() || null,
         is_active: form.is_active,
+        work_hours_json,
       });
       closePanel();
       await load();
-    } catch {
-      setErr("Solo el administrador de tienda puede editar staff.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "Solo el administrador de tienda puede editar staff.");
     }
   };
 
@@ -90,7 +122,7 @@ export function StaffPage() {
         <div>
           <h1 className="bp-page__title">Equipo</h1>
           <p className="bp-page__subtitle">
-            Barberos y staff de tu negocio. Perfiles visibles en la agenda.
+            Barberos y staff de tu negocio. Perfiles y días laborales para la agenda pública.
           </p>
         </div>
       </div>
@@ -131,9 +163,7 @@ export function StaffPage() {
                     {initials(r)}
                   </div>
                   <div>
-                    <h3 className="bp-product-card__name">
-                      {staffLabel(r)}
-                    </h3>
+                    <h3 className="bp-product-card__name">{staffLabel(r)}</h3>
                     <p className="bp-product-card__meta">{r.email}</p>
                   </div>
                 </div>
@@ -147,6 +177,9 @@ export function StaffPage() {
                   {r.role === "admin" ? "Administrador" : "Staff"}
                 </span>
                 {r.phone ? <span className="bp-badge bp-badge--neutral">{r.phone}</span> : null}
+                <span className="bp-badge bp-badge--neutral">
+                  {summarizeWorkDays(r.work_hours_json)}
+                </span>
               </div>
               {admin ? (
                 <div className="bp-product-card__footer">
@@ -166,13 +199,14 @@ export function StaffPage() {
       )}
 
       <p className="bp-hint" style={{ marginTop: 20 }}>
-        Próximamente: invitar barberos, disponibilidad y asignación a reservas públicas.
+        El horario del negocio (Ajustes) marca la apertura del local. Cada persona puede usar ese
+        mismo horario o definir sus propios días y horas.
       </p>
 
       {panelOpen && editingRow ? (
         <>
           <div className="bp-panel__overlay" onClick={closePanel} />
-          <div className="bp-panel" role="dialog" aria-modal="true">
+          <div className="bp-panel bp-panel--wide" role="dialog" aria-modal="true">
             <div className="bp-panel__header">
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div className="bp-avatar bp-avatar--lg">{initials(editingRow)}</div>
@@ -221,6 +255,30 @@ export function StaffPage() {
                   <span className="bp-switch__thumb" />
                 </span>
               </label>
+
+              <div className="bp-field" style={{ marginTop: 8 }}>
+                <label className="bp-label">Horario laboral</label>
+                <p className="bp-hint" style={{ marginTop: 0 }}>
+                  Si todos trabajan los mismos días, deja “horario del negocio”. Si no, marca los días
+                  de esta persona (ej. Lun–Mié). Solo se ofrecen citas en la intersección con el
+                  horario del local.
+                </p>
+                <label className="bp-switch-row" style={{ marginBottom: 12 }}>
+                  <span className="bp-switch-row__text">Usar horario del negocio</span>
+                  <span className="bp-switch">
+                    <input
+                      type="checkbox"
+                      checked={followBusinessHours}
+                      onChange={(e) => setFollowBusinessHours(e.target.checked)}
+                    />
+                    <span className="bp-switch__track" />
+                    <span className="bp-switch__thumb" />
+                  </span>
+                </label>
+                {!followBusinessHours ? (
+                  <BusinessHoursEditor value={hours} onChange={setHours} />
+                ) : null}
+              </div>
             </div>
             <div className="bp-panel__footer">
               <button type="button" className="bp-btn bp-btn--secondary" onClick={closePanel}>

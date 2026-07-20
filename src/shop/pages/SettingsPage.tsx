@@ -5,6 +5,13 @@ import { mediaUrl } from "../../mediaUrl";
 import { session } from "../../auth/session";
 import { isShopAdmin } from "../../auth/roles";
 import { IconAlert } from "../icons";
+import { BusinessHoursEditor } from "../BusinessHoursEditor";
+import {
+  parseBusinessHoursJson,
+  serializeWeeklySchedule,
+  validateWeeklySchedule,
+  type WeeklySchedule,
+} from "../businessHours";
 
 type Biz = {
   id: string;
@@ -26,9 +33,9 @@ export function SettingsPage() {
     email: "",
     phone: "",
     logo_url: "",
-    business_hours_json: "",
     booking_notes: "",
   });
+  const [hours, setHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -45,9 +52,9 @@ export function SettingsPage() {
         email: res.data.email,
         phone: res.data.phone,
         logo_url: res.data.logo_url ?? "",
-        business_hours_json: res.data.business_hours_json ?? "",
         booking_notes: res.data.booking_notes ?? "",
       });
+      setHours(parseBusinessHoursJson(res.data.business_hours_json));
     } catch {
       setErr("Error al cargar ajustes.");
     }
@@ -61,6 +68,13 @@ export function SettingsPage() {
     if (!admin) return;
     setSaved(false);
     setErr(null);
+
+    const hoursErr = validateWeeklySchedule(hours);
+    if (hoursErr) {
+      setErr(hoursErr);
+      return;
+    }
+
     try {
       await axios.put(`${API_BASE_URL}/api/shop/settings`, {
         name: form.name.trim(),
@@ -68,13 +82,17 @@ export function SettingsPage() {
         email: form.email.trim(),
         phone: form.phone.trim(),
         logo_url: form.logo_url.trim() || null,
-        business_hours_json: form.business_hours_json.trim() || null,
+        business_hours_json: serializeWeeklySchedule(hours),
         booking_notes: form.booking_notes.trim() || null,
       });
       await load();
       setSaved(true);
-    } catch {
-      setErr("No se pudo guardar (¿permisos?).");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo guardar (¿permisos?).");
     }
   };
 
@@ -139,7 +157,7 @@ export function SettingsPage() {
         <div>
           <h1 className="bp-page__title">Ajustes</h1>
           <p className="bp-page__subtitle">
-            Identidad, contacto y preferencias de tu negocio.
+            Identidad, horarios y preferencias de tu negocio.
           </p>
         </div>
         {admin ? (
@@ -273,23 +291,13 @@ export function SettingsPage() {
 
       <section className="bp-settings-section">
         <div className="bp-settings-section__head">
-          <h2 className="bp-card__title">Horarios</h2>
+          <h2 className="bp-card__title">Horarios de atención</h2>
           <p className="bp-card__subtitle">
-            Formato JSON por ahora. Más adelante: editor visual por día.
+            Por ejemplo: Lun–Sáb 9:00–19:00 y Dom 10:00–16:00. Controla la agenda pública.
           </p>
         </div>
         <div className="bp-settings-section__body">
-          <div className="bp-field">
-            <label className="bp-label">business_hours_json</label>
-            <textarea
-              className="bp-textarea"
-              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, minHeight: 120 }}
-              disabled={!admin}
-              placeholder='{"mon":[{"open":"09:00","close":"18:00"}]}'
-              value={form.business_hours_json}
-              onChange={(e) => setForm((f) => ({ ...f, business_hours_json: e.target.value }))}
-            />
-          </div>
+          <BusinessHoursEditor value={hours} onChange={setHours} disabled={!admin} />
         </div>
       </section>
 
