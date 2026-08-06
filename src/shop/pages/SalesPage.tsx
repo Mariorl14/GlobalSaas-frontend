@@ -10,6 +10,8 @@ import {
   IconTrash,
 } from "../icons";
 import { staffLabel } from "../staffLabel";
+import { PaymentMethodField } from "../PaymentMethodField";
+import { payBadgeClass, payLabel } from "../paymentMethods";
 
 type Sale = {
   id: string;
@@ -21,7 +23,7 @@ type Sale = {
   discount: number;
   tax: number;
   total: number;
-  payment_method: string;
+  payment_method: string | null;
   status: string;
   notes: string | null;
   created_at: string | null;
@@ -116,17 +118,6 @@ function moneyExact(n: number) {
   }).format(n);
 }
 
-function payLabel(m: string) {
-  const map: Record<string, string> = {
-    cash: "Efectivo",
-    card: "Tarjeta",
-    sinpe: "SINPE",
-    transfer: "Transferencia",
-    other: "Otro",
-  };
-  return map[m] ?? m;
-}
-
 function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -154,7 +145,7 @@ export function SalesPage() {
 
   const [clientId, setClientId] = useState("");
   const [barberId, setBarberId] = useState("");
-  const [payment, setPayment] = useState("cash");
+  const [payment, setPayment] = useState("");
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineDraft[]>([]);
@@ -165,7 +156,9 @@ export function SalesPage() {
     const [c, s, p, t] = await Promise.all([
       axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/clients`),
       axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/services`),
-      axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/inventory`),
+      axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/inventory`, {
+        params: { sellable: true },
+      }),
       axios.get<{ items: StaffOpt[] }>(`${API_BASE_URL}/api/shop/staff`),
     ]);
     setClients(c.data.items);
@@ -236,7 +229,7 @@ export function SalesPage() {
     setLines([]);
     setClientId("");
     setBarberId("");
-    setPayment("cash");
+    setPayment("");
     setDiscount("0");
     setNotes("");
     setAddRef("");
@@ -282,6 +275,10 @@ export function SalesPage() {
   const submitSale = async () => {
     if (lines.length === 0) {
       setErr("Agrega al menos un ítem.");
+      return;
+    }
+    if (!payment) {
+      setErr("Selecciona el método de pago.");
       return;
     }
     setSaving(true);
@@ -442,11 +439,10 @@ export function SalesPage() {
         </select>
         <select className="bp-select" style={{ width: 160 }} value={paymentF} onChange={(e) => setPaymentF(e.target.value)}>
           <option value="">Pago</option>
-          <option value="cash">Efectivo</option>
-          <option value="card">Tarjeta</option>
+          <option value="cash">Cash</option>
           <option value="sinpe">SINPE</option>
-          <option value="transfer">Transferencia</option>
-          <option value="other">Otro</option>
+          <option value="card">Card</option>
+          <option value="unrecorded">Not recorded</option>
         </select>
       </div>
 
@@ -501,7 +497,11 @@ export function SalesPage() {
                     <td>
                       <strong>{moneyExact(s.total)}</strong>
                     </td>
-                    <td>{payLabel(s.payment_method)}</td>
+                    <td>
+                      <span className={`bp-badge ${payBadgeClass(s.payment_method)}`}>
+                        {payLabel(s.payment_method)}
+                      </span>
+                    </td>
                     <td>
                       <span
                         className={`bp-badge ${
@@ -663,16 +663,10 @@ export function SalesPage() {
                     onChange={(e) => setDiscount(e.target.value)}
                   />
                 </div>
-                <div className="bp-field">
-                  <label className="bp-label">Método de pago</label>
-                  <select className="bp-select" value={payment} onChange={(e) => setPayment(e.target.value)}>
-                    <option value="cash">Efectivo</option>
-                    <option value="card">Tarjeta</option>
-                    <option value="sinpe">SINPE</option>
-                    <option value="transfer">Transferencia</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </div>
+                <PaymentMethodField
+                  value={payment}
+                  onChange={(v) => setPayment(v)}
+                />
               </div>
               <div className="bp-field">
                 <label className="bp-label">Notas</label>

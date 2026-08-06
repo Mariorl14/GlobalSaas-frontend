@@ -51,6 +51,17 @@ type InsightsPayload = {
     occupancy_rate: number | null;
     occupancy_delta_pct: number | null;
   };
+  payment_methods?: {
+    cash: { revenue: number; count: number; service_revenue: number; product_revenue: number };
+    sinpe: { revenue: number; count: number; service_revenue: number; product_revenue: number };
+    card: { revenue: number; count: number; service_revenue: number; product_revenue: number };
+    unclassified: {
+      revenue: number;
+      count: number;
+      service_revenue: number;
+      product_revenue: number;
+    };
+  };
   series: Array<{
     date: string;
     label: string;
@@ -101,13 +112,18 @@ type InsightsPayload = {
   };
   inventory: {
     inventory_cost: number;
+    retail_inventory_cost?: number;
+    supplies_inventory_cost?: number;
+    unclassified_inventory_cost?: number;
     potential_revenue: number;
     projected_gross_profit: number;
     products_remaining: number;
     sku_count: number;
     products_sold: number | null;
     product_revenue?: number;
+    product_cogs?: number;
     product_gross_profit?: number;
+    supply_purchase_expense?: number;
     avg_product_sale_value?: number;
     sell_through_rate?: number | null;
     best_selling_product?: { id: string; name: string; units: number; revenue: number } | null;
@@ -577,6 +593,46 @@ export function DashboardPage() {
         <p className="bp-meta-note">{data.meta?.currency_note}</p>
       </section>
 
+      {data.payment_methods ? (
+        <section style={{ marginTop: 16 }}>
+          <div className="bp-card">
+            <div className="bp-card__header">
+              <div>
+                <h3 className="bp-card__title">Ingresos por método de pago</h3>
+                <p className="bp-card__subtitle">
+                  Solo ventas completadas del periodo (Cash / SINPE / Card)
+                </p>
+              </div>
+            </div>
+            <div className="bp-card__body">
+              <div className="bp-kpi-grid bp-kpi-grid--4">
+                {(
+                  [
+                    ["cash", "Cash", data.payment_methods.cash],
+                    ["sinpe", "SINPE", data.payment_methods.sinpe],
+                    ["card", "Card", data.payment_methods.card],
+                    ["unclassified", "Not recorded", data.payment_methods.unclassified],
+                  ] as const
+                ).map(([key, label, bucket]) => (
+                  <div className="bp-kpi" key={key}>
+                    <div className="bp-kpi__top">
+                      <span className="bp-kpi__label">{label}</span>
+                    </div>
+                    <div className="bp-kpi__value">{money(bucket.revenue)}</div>
+                    <div className="bp-kpi__sub">
+                      {bucket.count} ticket{bucket.count === 1 ? "" : "s"}
+                      {bucket.service_revenue || bucket.product_revenue
+                        ? ` · svc ${money(bucket.service_revenue)} · prod ${money(bucket.product_revenue)}`
+                        : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <div className="bp-grid-2">
         {/* Revenue chart */}
         <div className="bp-card">
@@ -889,7 +945,9 @@ export function DashboardPage() {
         <div className="bp-card__header">
           <div>
             <h3 className="bp-section-title">Inventario · valor en anaquel</h3>
-            <p className="bp-section-sub">Cuánto dinero tienes parado — y cuánto puedes recuperar</p>
+            <p className="bp-section-sub">
+              Potencial de venta solo cuenta productos retail; los insumos son gasto operativo
+            </p>
           </div>
           <Link to="/shop/inventory" className="bp-btn bp-btn--ghost bp-btn--sm">
             Revisar stock
@@ -899,11 +957,11 @@ export function DashboardPage() {
         <div className="bp-card__body">
           <div className="bp-inv-hero">
             <div className="bp-inv-hero__card">
-              <span>Costo de inventario</span>
-              <strong>{money(inventory.inventory_cost)}</strong>
+              <span>Costo retail en stock</span>
+              <strong>{money(inventory.retail_inventory_cost ?? inventory.inventory_cost)}</strong>
             </div>
             <div className="bp-inv-hero__card">
-              <span>Ingreso potencial</span>
+              <span>Ingreso potencial (retail)</span>
               <strong>{money(inventory.potential_revenue)}</strong>
             </div>
             <div className="bp-inv-hero__card bp-inv-hero__card--accent">
@@ -912,6 +970,22 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="bp-insight-grid" style={{ marginTop: 14 }}>
+            <div className="bp-metric-tile">
+              <div className="bp-metric-tile__label">Costo insumos en stock</div>
+              <div className="bp-metric-tile__value">
+                {money(inventory.supplies_inventory_cost ?? 0)}
+              </div>
+            </div>
+            <div className="bp-metric-tile">
+              <div className="bp-metric-tile__label">Compras insumos (periodo)</div>
+              <div className="bp-metric-tile__value">
+                {money(inventory.supply_purchase_expense ?? 0)}
+              </div>
+            </div>
+            <div className="bp-metric-tile">
+              <div className="bp-metric-tile__label">COGS productos</div>
+              <div className="bp-metric-tile__value">{money(inventory.product_cogs ?? 0)}</div>
+            </div>
             <div className="bp-metric-tile">
               <div className="bp-metric-tile__label">Unidades en stock</div>
               <div className="bp-metric-tile__value">{inventory.products_remaining}</div>

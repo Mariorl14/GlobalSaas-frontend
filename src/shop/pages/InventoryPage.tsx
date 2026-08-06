@@ -15,13 +15,19 @@ import {
   IconActivity,
 } from "../icons";
 
+import { PaymentMethodField } from "../PaymentMethodField";
+
+type ItemKind = "RETAIL_PRODUCT" | "OPERATING_SUPPLY" | "UNCLASSIFIED";
+
 type Row = {
   id: string;
   name: string;
   category: string | null;
+  item_kind?: ItemKind;
+  is_sellable?: boolean;
   stock: number;
   min_stock: number;
-  price: number;
+  price: number | null;
   unit_cost: number | null;
   supplier: string | null;
   is_active: boolean;
@@ -55,12 +61,21 @@ const ADD_TYPES = [
 ];
 
 const REDUCE_TYPES = [
-  { value: "sale", label: "Venta" },
   { value: "damaged", label: "Dañado" },
   { value: "lost", label: "Perdido" },
   { value: "internal_use", label: "Uso interno" },
   { value: "correction_decrease", label: "Corrección (−)" },
 ];
+
+const KIND_OPTIONS: { value: ItemKind; label: string }[] = [
+  { value: "RETAIL_PRODUCT", label: "Producto de venta" },
+  { value: "OPERATING_SUPPLY", label: "Insumo operativo" },
+  { value: "UNCLASSIFIED", label: "Sin clasificar" },
+];
+
+function kindLabel(kind: ItemKind | undefined): string {
+  return KIND_OPTIONS.find((k) => k.value === kind)?.label ?? "Sin clasificar";
+}
 
 function movementBadge(type: string): string {
   if (type === "sale") return "bp-badge--primary";
@@ -98,6 +113,7 @@ export function InventoryPage() {
   const [form, setForm] = useState({
     name: "",
     category: "",
+    item_kind: "UNCLASSIFIED" as ItemKind,
     stock: "0",
     min_stock: "0",
     price: "",
@@ -112,6 +128,7 @@ export function InventoryPage() {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
+  const [filterKind, setFilterKind] = useState<"" | ItemKind>("");
   const [saving, setSaving] = useState(false);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [histType, setHistType] = useState("");
@@ -122,6 +139,7 @@ export function InventoryPage() {
   const [moveCost, setMoveCost] = useState("");
   const [movePrice, setMovePrice] = useState("");
   const [moveNotes, setMoveNotes] = useState("");
+  const [salePayment, setSalePayment] = useState("");
   const [idemKey, setIdemKey] = useState(() => newIdempotencyKey());
 
   const load = useCallback(async () => {
@@ -155,6 +173,7 @@ export function InventoryPage() {
     setForm({
       name: "",
       category: "",
+      item_kind: "UNCLASSIFIED",
       stock: "0",
       min_stock: "0",
       price: "",
@@ -172,9 +191,10 @@ export function InventoryPage() {
     setForm({
       name: p.name,
       category: p.category ?? "",
+      item_kind: p.item_kind ?? "UNCLASSIFIED",
       stock: String(p.stock),
       min_stock: String(p.min_stock),
-      price: String(p.price),
+      price: p.price != null ? String(p.price) : "",
       unit_cost: p.unit_cost != null ? String(p.unit_cost) : "",
       supplier: p.supplier ?? "",
       is_active: p.is_active,
@@ -197,8 +217,8 @@ export function InventoryPage() {
   const openReduce = (p: Row) => {
     setActiveProduct(p);
     setMoveQty("1");
-    setMoveType("damaged");
-    setMovePrice(String(p.price));
+    setMoveType("internal_use");
+    setMovePrice(p.price != null ? String(p.price) : "");
     setMoveCost(p.unit_cost != null ? String(p.unit_cost) : "");
     setMoveNotes("");
     setIdemKey(newIdempotencyKey());
@@ -207,12 +227,17 @@ export function InventoryPage() {
   };
 
   const openSale = (p: Row) => {
+    if (p.item_kind !== "RETAIL_PRODUCT") {
+      setErr("Solo los productos de venta se pueden vender. Clasifícalo primero.");
+      return;
+    }
     setActiveProduct(p);
     setMoveQty("1");
     setMoveType("sale");
-    setMovePrice(String(p.price));
+    setMovePrice(p.price != null ? String(p.price) : "");
     setMoveCost(p.unit_cost != null ? String(p.unit_cost) : "");
     setMoveNotes("");
+    setSalePayment("");
     setIdemKey(newIdempotencyKey());
     setErr(null);
     setMode("sale");
@@ -239,13 +264,18 @@ export function InventoryPage() {
 
   const submitProduct = async () => {
     setErr(null);
+    if (form.item_kind === "RETAIL_PRODUCT" && form.price.trim() === "") {
+      setErr("Los productos de venta requieren precio.");
+      return;
+    }
     setSaving(true);
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || null,
+      item_kind: form.item_kind,
       stock: Number.parseInt(form.stock, 10),
       min_stock: Number.parseInt(form.min_stock, 10),
-      price: Number(form.price),
+      price: form.price.trim() === "" ? null : Number(form.price),
       unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
       supplier: form.supplier.trim() || null,
       is_active: form.is_active,
@@ -264,7 +294,7 @@ export function InventoryPage() {
       } else {
         await axios.post(`${API_BASE_URL}/api/shop/inventory`, payload);
       }
-      setOkMsg("Producto guardado");
+      setOkMsg("Artículo guardado");
       closePanel();
       await load();
     } catch (e: unknown) {
@@ -281,6 +311,10 @@ export function InventoryPage() {
   const submitMovement = async () => {
     if (!activeProduct) return;
     setErr(null);
+    if (mode === "sale" && !salePayment) {
+      setErr("Selecciona el método de pago.");
+      return;
+    }
     setSaving(true);
     const qty = Number.parseInt(moveQty, 10);
     try {
@@ -292,6 +326,7 @@ export function InventoryPage() {
             unit_sale_price: movePrice ? Number(movePrice) : undefined,
             unit_cost: moveCost ? Number(moveCost) : undefined,
             notes: moveNotes || undefined,
+            payment_method: salePayment,
             idempotency_key: idemKey,
           },
         );
@@ -307,6 +342,7 @@ export function InventoryPage() {
             unit_sale_price:
               mtype === "sale" && movePrice ? Number(movePrice) : undefined,
             notes: moveNotes || undefined,
+            payment_method: mtype === "sale" ? salePayment || undefined : undefined,
             idempotency_key: idemKey,
             update_product_cost: mode === "add" && Boolean(moveCost),
           },
@@ -347,6 +383,7 @@ export function InventoryPage() {
 
   const visible = useMemo(() => {
     let out = items;
+    if (filterKind) out = out.filter((i) => (i.item_kind ?? "UNCLASSIFIED") === filterKind);
     if (filterCat) out = out.filter((i) => i.category === filterCat);
     const q = search.trim().toLowerCase();
     if (q) {
@@ -358,7 +395,7 @@ export function InventoryPage() {
       );
     }
     return out;
-  }, [items, search, filterCat]);
+  }, [items, search, filterCat, filterKind]);
 
   const lowCount = items.filter((i) => i.low_stock).length;
   const projectedQty =
@@ -389,7 +426,7 @@ export function InventoryPage() {
         <div>
           <h1 className="bp-page__title">Inventario</h1>
           <p className="bp-page__subtitle">
-            Entradas, salidas y ventas con historial. Las ventas alimentan Insights.
+            Separa productos de venta e insumos. Solo el retail cuenta como ingreso potencial.
           </p>
         </div>
         <div className="bp-page__actions">
@@ -434,6 +471,19 @@ export function InventoryPage() {
             placeholder="Buscar artículo…"
           />
         </div>
+        <select
+          className="bp-select"
+          style={{ width: 200 }}
+          value={filterKind}
+          onChange={(e) => setFilterKind(e.target.value as "" | ItemKind)}
+        >
+          <option value="">Todos los tipos</option>
+          {KIND_OPTIONS.map((k) => (
+            <option key={k.value} value={k.value}>
+              {k.label}
+            </option>
+          ))}
+        </select>
         <select
           className="bp-select"
           style={{ width: 180 }}
@@ -485,7 +535,8 @@ export function InventoryPage() {
                   <div>
                     <h3 className="bp-product-card__name">{p.name}</h3>
                     <p className="bp-product-card__meta">
-                      {p.category ?? "Sin categoría"}
+                      {kindLabel(p.item_kind)}
+                      {p.category ? ` · ${p.category}` : ""}
                       {p.supplier ? ` · ${p.supplier}` : ""}
                     </p>
                   </div>
@@ -505,7 +556,11 @@ export function InventoryPage() {
                       {p.stock} uds · mín {p.min_stock}
                     </span>
                     <span className="bp-product-card__price" style={{ fontSize: 16 }}>
-                      ${p.price.toFixed(2)}
+                      {p.item_kind === "RETAIL_PRODUCT" && p.price != null
+                        ? `$${Number(p.price).toFixed(2)}`
+                        : p.unit_cost != null
+                          ? `Costo $${Number(p.unit_cost).toFixed(2)}`
+                          : "—"}
                     </span>
                   </div>
                   <div className="bp-stock-bar">
@@ -521,10 +576,12 @@ export function InventoryPage() {
                     <IconArrowDown />
                     Salida
                   </button>
-                  <button type="button" className="bp-btn bp-btn--primary bp-btn--sm" onClick={() => openSale(p)}>
-                    <IconDollar />
-                    Venta
-                  </button>
+                  {p.item_kind === "RETAIL_PRODUCT" ? (
+                    <button type="button" className="bp-btn bp-btn--primary bp-btn--sm" onClick={() => openSale(p)}>
+                      <IconDollar />
+                      Venta
+                    </button>
+                  ) : null}
                   <button type="button" className="bp-btn bp-btn--ghost bp-btn--sm" onClick={() => void openHistory(p)}>
                     Historial
                   </button>
@@ -586,11 +643,31 @@ export function InventoryPage() {
                     />
                   </div>
                   <div className="bp-field">
+                    <label className="bp-label">Tipo</label>
+                    <select
+                      className="bp-select"
+                      value={form.item_kind}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, item_kind: e.target.value as ItemKind }))
+                      }
+                    >
+                      {KIND_OPTIONS.map((k) => (
+                        <option key={k.value} value={k.value}>
+                          {k.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="bp-hint">
+                      Producto de venta = se vende al cliente. Insumo = uso interno (no infla ingreso potencial).
+                    </span>
+                  </div>
+                  <div className="bp-field">
                     <label className="bp-label">Categoría</label>
                     <input
                       className="bp-input"
                       value={form.category}
                       onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                      placeholder="Ej. Shampoo, Guantes, Limpieza…"
                     />
                   </div>
                   <div className="bp-field__row">
@@ -627,16 +704,20 @@ export function InventoryPage() {
                     </div>
                   </div>
                   <div className="bp-field__row">
-                    <div className="bp-field">
-                      <label className="bp-label">Precio venta</label>
-                      <input
-                        className="bp-input"
-                        type="number"
-                        step="0.01"
-                        value={form.price}
-                        onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                      />
-                    </div>
+                    {form.item_kind === "RETAIL_PRODUCT" || form.item_kind === "UNCLASSIFIED" ? (
+                      <div className="bp-field">
+                        <label className="bp-label">
+                          Precio venta{form.item_kind === "RETAIL_PRODUCT" ? "" : " (opcional)"}
+                        </label>
+                        <input
+                          className="bp-input"
+                          type="number"
+                          step="0.01"
+                          value={form.price}
+                          onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                        />
+                      </div>
+                    ) : null}
                     <div className="bp-field">
                       <label className="bp-label">Costo unitario</label>
                       <input
@@ -700,17 +781,23 @@ export function InventoryPage() {
                     />
                   </div>
                   {(mode === "sale" || moveType === "sale") && (
-                    <div className="bp-field">
-                      <label className="bp-label">Precio unitario de venta</label>
-                      <input
-                        className="bp-input"
-                        type="number"
-                        step="0.01"
-                        value={movePrice}
-                        onChange={(e) => setMovePrice(e.target.value)}
+                    <>
+                      <div className="bp-field">
+                        <label className="bp-label">Precio unitario de venta</label>
+                        <input
+                          className="bp-input"
+                          type="number"
+                          step="0.01"
+                          value={movePrice}
+                          onChange={(e) => setMovePrice(e.target.value)}
+                        />
+                        <span className="bp-hint">Total: ${saleTotal.toFixed(2)}</span>
+                      </div>
+                      <PaymentMethodField
+                        value={salePayment}
+                        onChange={(v) => setSalePayment(v)}
                       />
-                      <span className="bp-hint">Total: ${saleTotal.toFixed(2)}</span>
-                    </div>
+                    </>
                   )}
                   {(mode === "add" || mode === "sale") && (
                     <div className="bp-field">

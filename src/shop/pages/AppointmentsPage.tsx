@@ -12,6 +12,7 @@ import {
 } from "../icons";
 import { playAppointmentChime, unlockShopAudio } from "../sound";
 import { staffLabel } from "../staffLabel";
+import { PaymentMethodField } from "../PaymentMethodField";
 
 type Appointment = {
   id: string;
@@ -139,6 +140,12 @@ export function AppointmentsPage() {
     email: "",
   });
   const [saving, setSaving] = useState(false);
+  const [completeTarget, setCompleteTarget] = useState<{
+    id: string;
+    start_time: string;
+    end_time: string;
+  } | null>(null);
+  const [completePay, setCompletePay] = useState("");
 
   const [form, setForm] = useState({
     client_id: "",
@@ -148,6 +155,7 @@ export function AppointmentsPage() {
     end: "",
     status: "scheduled",
     notes: "",
+    payment_method: "",
   });
 
   const loadRefs = useCallback(async () => {
@@ -207,6 +215,7 @@ export function AppointmentsPage() {
       end: "",
       status: "scheduled",
       notes: "",
+      payment_method: "",
     });
     setClientMode("existing");
     setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
@@ -217,6 +226,10 @@ export function AppointmentsPage() {
     setErr(null);
     if (!form.service_type_id || !form.employee_id || !form.start || !form.end) {
       setErr("Completa servicio, staff e horario.");
+      return;
+    }
+    if (form.status === "completed" && !form.payment_method) {
+      setErr("Selecciona el método de pago para registrar el ingreso.");
       return;
     }
 
@@ -255,6 +268,9 @@ export function AppointmentsPage() {
           end_time: new Date(form.end).toISOString(),
           status: form.status,
           notes: form.notes || undefined,
+          ...(form.status === "completed"
+            ? { payment_method: form.payment_method }
+            : {}),
         },
       );
       if (createdAppt.data?.id) {
@@ -275,7 +291,11 @@ export function AppointmentsPage() {
     }
   };
 
-  const patchStatus = async (id: string, status: string) => {
+  const patchStatus = async (
+    id: string,
+    status: string,
+    paymentMethod?: string,
+  ) => {
     const a = items.find((x) => x.id === id);
     if (!a || !a.start_time || !a.end_time) return;
     try {
@@ -283,10 +303,61 @@ export function AppointmentsPage() {
         status,
         start_time: a.start_time,
         end_time: a.end_time,
+        ...(status === "completed" && paymentMethod
+          ? { payment_method: paymentMethod }
+          : {}),
       });
       await load();
-    } catch {
-      setErr("No se pudo actualizar estado.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo actualizar estado.");
+    }
+  };
+
+  const requestStatusChange = (id: string, status: string) => {
+    if (status === "completed") {
+      const a = items.find((x) => x.id === id);
+      if (!a?.start_time || !a.end_time) return;
+      setCompleteTarget({
+        id,
+        start_time: a.start_time,
+        end_time: a.end_time,
+      });
+      setCompletePay("");
+      setErr(null);
+      return;
+    }
+    void patchStatus(id, status);
+  };
+
+  const confirmComplete = async () => {
+    if (!completeTarget) return;
+    if (!completePay) {
+      setErr("Selecciona el método de pago.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.put(`${API_BASE_URL}/api/shop/appointments/${completeTarget.id}`, {
+        status: "completed",
+        start_time: completeTarget.start_time,
+        end_time: completeTarget.end_time,
+        payment_method: completePay,
+      });
+      setCompleteTarget(null);
+      setCompletePay("");
+      await load();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo completar la cita.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -507,7 +578,7 @@ export function AppointmentsPage() {
                         className="bp-select"
                         style={{ width: 140, padding: "6px 28px 6px 10px", fontSize: 13 }}
                         value={a.status}
-                        onChange={(e) => void patchStatus(a.id, e.target.value)}
+                        onChange={(e) => void requestStatusChange(a.id, e.target.value)}
                       >
                         <option value="scheduled">Programada</option>
                         <option value="confirmed">Confirmada</option>
@@ -717,6 +788,12 @@ export function AppointmentsPage() {
                   <option value="no_show">No asistió</option>
                 </select>
               </div>
+              {form.status === "completed" ? (
+                <PaymentMethodField
+                  value={form.payment_method}
+                  onChange={(v) => setForm((f) => ({ ...f, payment_method: v }))}
+                />
+              ) : null}
               <div className="bp-field">
                 <label className="bp-label">Notas</label>
                 <input
@@ -746,6 +823,67 @@ export function AppointmentsPage() {
                 disabled={saving}
               >
                 {saving ? "Creando…" : "Crear cita"}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {completeTarget ? (
+        <>
+          <button
+            type="button"
+            className="bp-panel__overlay"
+            aria-label="Cerrar"
+            onClick={() => {
+              setCompleteTarget(null);
+              setCompletePay("");
+            }}
+          />
+          <div className="bp-panel" role="dialog" aria-modal="true">
+            <div className="bp-panel__header">
+              <div>
+                <h2 className="bp-panel__title">Completar cita</h2>
+                <p className="bp-panel__subtitle">
+                  Elige cómo pagó el cliente. Se registrará un ingreso en Ventas.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="bp-icon-btn"
+                onClick={() => {
+                  setCompleteTarget(null);
+                  setCompletePay("");
+                }}
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="bp-panel__body">
+              <PaymentMethodField
+                value={completePay}
+                onChange={(v) => setCompletePay(v)}
+              />
+            </div>
+            <div className="bp-panel__footer">
+              <button
+                type="button"
+                className="bp-btn bp-btn--secondary"
+                onClick={() => {
+                  setCompleteTarget(null);
+                  setCompletePay("");
+                }}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="bp-btn bp-btn--primary"
+                onClick={() => void confirmComplete()}
+                disabled={saving}
+              >
+                {saving ? "Guardando…" : "Confirmar pago"}
               </button>
             </div>
           </div>

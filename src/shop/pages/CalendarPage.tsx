@@ -11,6 +11,7 @@ import {
   IconPlus,
 } from "../icons";
 import { staffLabel } from "../staffLabel";
+import { PaymentMethodField } from "../PaymentMethodField";
 
 type Appointment = {
   id: string;
@@ -127,6 +128,8 @@ export function CalendarPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Appointment | null>(null);
+  const [completePayOpen, setCompletePayOpen] = useState(false);
+  const [completePay, setCompletePay] = useState("");
   const [saving, setSaving] = useState(false);
 
   const range = useMemo(() => {
@@ -205,7 +208,11 @@ export function CalendarPage() {
     );
   }, [items, anchor]);
 
-  const patchStatus = async (id: string, status: string) => {
+  const patchStatus = async (
+    id: string,
+    status: string,
+    paymentMethod?: string,
+  ) => {
     const a = items.find((x) => x.id === id) ?? selected;
     if (!a?.start_time || !a.end_time) return;
     setSaving(true);
@@ -214,14 +221,38 @@ export function CalendarPage() {
         status,
         start_time: a.start_time,
         end_time: a.end_time,
+        ...(status === "completed" && paymentMethod
+          ? { payment_method: paymentMethod }
+          : {}),
       });
       await load();
       setSelected((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
-    } catch {
-      setErr("No se pudo actualizar el estado.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo actualizar el estado.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const openCompletePay = () => {
+    setCompletePay("");
+    setCompletePayOpen(true);
+    setErr(null);
+  };
+
+  const confirmCompletePay = async () => {
+    if (!selected) return;
+    if (!completePay) {
+      setErr("Selecciona el método de pago.");
+      return;
+    }
+    setCompletePayOpen(false);
+    await patchStatus(selected.id, "completed", completePay);
+    setCompletePay("");
   };
 
   const reschedule = async () => {
@@ -538,7 +569,7 @@ export function CalendarPage() {
                 type="button"
                 className="bp-btn bp-btn--secondary bp-btn--sm"
                 disabled={saving}
-                onClick={() => void patchStatus(selected.id, "completed")}
+                onClick={() => openCompletePay()}
               >
                 Completar
               </button>
@@ -564,6 +595,58 @@ export function CalendarPage() {
                 onClick={() => void reschedule()}
               >
                 {saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {completePayOpen && selected ? (
+        <>
+          <button
+            type="button"
+            className="bp-panel__overlay"
+            aria-label="Cerrar"
+            onClick={() => setCompletePayOpen(false)}
+          />
+          <div className="bp-panel" role="dialog" aria-modal="true">
+            <div className="bp-panel__header">
+              <div>
+                <h2 className="bp-panel__title">Completar cita</h2>
+                <p className="bp-panel__subtitle">
+                  {selected.client_name} — elige el método de pago.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="bp-icon-btn"
+                onClick={() => setCompletePayOpen(false)}
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="bp-panel__body">
+              <PaymentMethodField
+                value={completePay}
+                onChange={(v) => setCompletePay(v)}
+              />
+            </div>
+            <div className="bp-panel__footer">
+              <button
+                type="button"
+                className="bp-btn bp-btn--secondary"
+                onClick={() => setCompletePayOpen(false)}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="bp-btn bp-btn--primary"
+                onClick={() => void confirmCompletePay()}
+                disabled={saving}
+              >
+                {saving ? "Guardando…" : "Confirmar pago"}
               </button>
             </div>
           </div>
