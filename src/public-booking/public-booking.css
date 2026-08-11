@@ -19,6 +19,8 @@
   --pb-shadow-lg: 0 25px 50px -12px rgb(15 23 42 / 0.18);
   font-family: var(--pb-font);
   -webkit-font-smoothing: antialiased;
+  /* Keep form controls light on phones with system dark mode */
+  color-scheme: light;
 }
 
 .pb-root *,
@@ -242,7 +244,8 @@
   font-family: inherit;
   font-weight: 500;
   color: var(--pb-ink);
-  background: var(--pb-surface);
+  background-color: #ffffff;
+  color-scheme: light;
   appearance: none;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -274,7 +277,31 @@
   font-size: 1rem;
   font-family: inherit;
   color: var(--pb-ink);
+  background-color: #ffffff;
+  background-clip: padding-box;
+  -webkit-text-fill-color: var(--pb-ink);
   transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pb-input::placeholder,
+.pb-textarea::placeholder {
+  color: var(--pb-subtle);
+  -webkit-text-fill-color: var(--pb-subtle);
+  opacity: 1;
+}
+
+.pb-input:-webkit-autofill,
+.pb-input:-webkit-autofill:hover,
+.pb-input:-webkit-autofill:focus,
+.pb-textarea:-webkit-autofill,
+.pb-textarea:-webkit-autofill:hover,
+.pb-textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--pb-ink);
+  caret-color: var(--pb-ink);
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 99999s ease-in-out 0s;
 }
 
 @media (min-width: 480px) {
@@ -288,6 +315,7 @@
 .pb-textarea:focus {
   outline: none;
   border-color: var(--pb-accent);
+  background-color: #ffffff;
   box-shadow: 0 0 0 3px rgb(14 165 233 / 0.18);
 }
 
