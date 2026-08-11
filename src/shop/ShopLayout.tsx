@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { session } from "../auth/session";
 import { userDisplayName } from "./staffLabel";
-import { isShopUser, isSuperAdmin } from "../auth/roles";
+import {
+  isShopAdmin,
+  isShopStaff,
+  isShopUser,
+  isSuperAdmin,
+  shopRoleLabel,
+} from "../auth/roles";
 import { API_BASE_URL } from "../config";
 import { mediaUrl } from "../mediaUrl";
 import { syncAppointmentIds } from "./appointmentAlerts";
@@ -32,9 +38,17 @@ type BizBrief = {
   logo_url: string | null;
 };
 
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  /** If set, only managers (owner/admin) see this item */
+  managersOnly?: boolean;
+};
+
 const NAV_GROUPS: {
   label: string;
-  items: { to: string; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[];
+  items: NavItem[];
 }[] = [
   {
     label: "Principal",
@@ -49,15 +63,25 @@ const NAV_GROUPS: {
       { to: "/shop/appointments", label: "Citas", icon: IconCalendar },
       { to: "/shop/customers", label: "Clientes", icon: IconUsers },
       { to: "/shop/services", label: "Servicios", icon: IconScissors },
-      { to: "/shop/inventory", label: "Inventario", icon: IconPackage },
+      {
+        to: "/shop/inventory",
+        label: "Inventario",
+        icon: IconPackage,
+        managersOnly: true,
+      },
       { to: "/shop/sales", label: "Ventas", icon: IconDollar },
     ],
   },
   {
     label: "Negocio",
     items: [
-      { to: "/shop/staff", label: "Equipo", icon: IconTeam },
-      { to: "/shop/settings", label: "Ajustes", icon: IconSettings },
+      { to: "/shop/staff", label: "Equipo", icon: IconTeam, managersOnly: true },
+      {
+        to: "/shop/settings",
+        label: "Ajustes",
+        icon: IconSettings,
+        managersOnly: true,
+      },
     ],
   },
 ];
@@ -82,16 +106,50 @@ function todayLabel(): string {
   });
 }
 
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      {open ? (
+        <path
+          d="M6 6l12 12M18 6L6 18"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      ) : (
+        <path
+          d="M4 7h16M4 12h16M4 17h16"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  );
+}
+
 export function ShopLayout({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = session.getUser();
   const token = session.getToken();
+  const manager = isShopAdmin(user);
+  const staff = isShopStaff(user);
 
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [biz, setBiz] = useState<BizBrief | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
+
+  const navGroups = useMemo(
+    () =>
+      NAV_GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter((item) => !item.managersOnly || manager),
+      })).filter((g) => g.items.length > 0),
+    [manager],
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -106,7 +164,6 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener("bp-business-updated", refreshBiz);
   }, [token]);
 
-  // Unlock audio after first interaction (browser autoplay policy).
   useEffect(() => {
     const unlock = () => unlockShopAudio();
     window.addEventListener("pointerdown", unlock, { once: true });
@@ -117,7 +174,6 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
     };
   }, []);
 
-  // Soft chime when a new cita appears (e.g. reserva pública) while the portal is open.
   useEffect(() => {
     if (!token) return;
 
@@ -143,7 +199,7 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
         if (cancelled) return;
         syncAppointmentIds((res.data.items || []).map((a) => a.id));
       } catch {
-        /* ignore transient poll errors */
+        /* ignore */
       }
     };
 
@@ -166,17 +222,48 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [profileOpen]);
 
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when mobile nav open
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileNavOpen]);
+
+  // Staff hitting manager-only routes → redirect
+  useEffect(() => {
+    if (!staff) return;
+    const blocked = ["/shop/inventory", "/shop/staff", "/shop/settings"];
+    if (blocked.some((p) => location.pathname.startsWith(p))) {
+      navigate("/shop/appointments", { replace: true });
+    }
+  }, [staff, location.pathname, navigate]);
+
   if (!token || !user) {
     return <Navigate to="/shop/login" replace />;
   }
   if (isSuperAdmin(user)) {
     return (
-      <div className="bp-app" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 48 }}>
+      <div
+        className="bp-app"
+        style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 48 }}
+      >
         <div className="bp-card" style={{ padding: 32, textAlign: "center", maxWidth: 420 }}>
           <p style={{ margin: "0 0 16px", color: "var(--bp-text-secondary)" }}>
             Esta área es solo para cuentas de tienda.
           </p>
-          <button type="button" className="bp-btn bp-btn--primary" onClick={() => navigate("/super-admin")}>
+          <button
+            type="button"
+            className="bp-btn bp-btn--primary"
+            onClick={() => navigate("/super-admin")}
+          >
             Ir al panel plataforma
           </button>
         </div>
@@ -188,7 +275,7 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
   }
 
   const display = userDisplayName(user);
-  const roleLabel = user.role === "admin" ? "Administrador" : "Staff";
+  const roleLabel = shopRoleLabel(user.role);
   const initials = (biz?.name || display).slice(0, 2).toUpperCase();
   const pageTitle = PAGE_TITLES[location.pathname] ?? "Panel";
   const shopName = biz?.name || "Tu barbería";
@@ -198,88 +285,120 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
     navigate("/shop/login", { replace: true });
   };
 
+  const sidebarClass = [
+    "bp-sidebar",
+    collapsed ? "bp-sidebar--collapsed" : "",
+    mobileNavOpen ? "bp-sidebar--mobile-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const nav = (
+    <>
+      <div className="bp-brand">
+        <div className="bp-brand__avatar">
+          {mediaUrl(biz?.logo_url) ? (
+            <img
+              src={mediaUrl(biz?.logo_url) ?? ""}
+              alt=""
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            initials.charAt(0)
+          )}
+        </div>
+        {!collapsed || mobileNavOpen ? (
+          <div className="bp-brand__text">
+            <span className="bp-brand__name">{shopName}</span>
+            <span className="bp-brand__sub">Portal del negocio</span>
+          </div>
+        ) : null}
+      </div>
+
+      <nav className="bp-nav">
+        {navGroups.map((group) => (
+          <div className="bp-nav-group" key={group.label}>
+            <div className="bp-nav-group__label">{group.label}</div>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  title={collapsed && !mobileNavOpen ? item.label : undefined}
+                  className={({ isActive }) =>
+                    `bp-nav-item${isActive ? " bp-nav-item--active" : ""}`
+                  }
+                >
+                  <span className="bp-nav-item__icon">
+                    <Icon />
+                  </span>
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="bp-sidebar__footer">
+        {!collapsed || mobileNavOpen ? (
+          <div className="bp-upgrade">
+            <p className="bp-upgrade__title">Barber Suite</p>
+            <p className="bp-upgrade__text">
+              {staff
+                ? "Ves solo tus citas e insights personales."
+                : "Gestiona citas, clientes y tu equipo desde un solo lugar."}
+            </p>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="bp-collapse-btn bp-collapse-btn--desktop"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? "Expandir" : "Colapsar"}
+        >
+          <IconChevronLeft
+            style={{
+              transform: collapsed ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s ease",
+            }}
+          />
+          {!collapsed ? <span>Colapsar</span> : null}
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="bp-app">
-      <div className="bp-shell">
-        <aside className={`bp-sidebar${collapsed ? " bp-sidebar--collapsed" : ""}`}>
-          <div className="bp-brand">
-            <div className="bp-brand__avatar">
-              {mediaUrl(biz?.logo_url) ? (
-                <img
-                  src={mediaUrl(biz?.logo_url) ?? ""}
-                  alt=""
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              ) : (
-                initials.charAt(0)
-              )}
-            </div>
-            {!collapsed ? (
-              <div className="bp-brand__text">
-                <span className="bp-brand__name">{shopName}</span>
-                <span className="bp-brand__sub">Portal del negocio</span>
-              </div>
-            ) : null}
-          </div>
+      <div className={`bp-shell${mobileNavOpen ? " bp-shell--nav-open" : ""}`}>
+        {mobileNavOpen ? (
+          <button
+            type="button"
+            className="bp-nav-backdrop"
+            aria-label="Cerrar menú"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        ) : null}
 
-          <nav className="bp-nav">
-            {NAV_GROUPS.map((group) => (
-              <div className="bp-nav-group" key={group.label}>
-                <div className="bp-nav-group__label">{group.label}</div>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      title={collapsed ? item.label : undefined}
-                      className={({ isActive }) =>
-                        `bp-nav-item${isActive ? " bp-nav-item--active" : ""}`
-                      }
-                    >
-                      <span className="bp-nav-item__icon">
-                        <Icon />
-                      </span>
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-
-          <div className="bp-sidebar__footer">
-            {!collapsed ? (
-              <div className="bp-upgrade">
-                <p className="bp-upgrade__title">Barber Suite</p>
-                <p className="bp-upgrade__text">
-                  Gestiona citas, clientes y tu equipo desde un solo lugar.
-                </p>
-              </div>
-            ) : null}
-            <button
-              type="button"
-              className="bp-collapse-btn"
-              onClick={() => setCollapsed((c) => !c)}
-              title={collapsed ? "Expandir" : "Colapsar"}
-            >
-              <IconChevronLeft
-                style={{
-                  transform: collapsed ? "rotate(180deg)" : "none",
-                  transition: "transform 0.2s ease",
-                }}
-              />
-              {!collapsed ? <span>Colapsar</span> : null}
-            </button>
-          </div>
-        </aside>
+        <aside className={sidebarClass}>{nav}</aside>
 
         <div className="bp-main">
           <header className="bp-topbar">
+            <button
+              type="button"
+              className="bp-icon-btn bp-menu-toggle"
+              aria-label={mobileNavOpen ? "Cerrar menú" : "Abrir menú"}
+              onClick={() => setMobileNavOpen((o) => !o)}
+            >
+              <MenuIcon open={mobileNavOpen} />
+            </button>
+
             <nav className="bp-breadcrumb">
-              <span>{shopName}</span>
+              <span className="bp-breadcrumb__shop">{shopName}</span>
               <span className="bp-breadcrumb__sep">/</span>
               <span className="bp-breadcrumb__current">{pageTitle}</span>
             </nav>
@@ -295,11 +414,11 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
             <div className="bp-topbar__actions">
               <button
                 type="button"
-                className="bp-btn bp-btn--primary bp-btn--sm"
+                className="bp-btn bp-btn--primary bp-btn--sm bp-topbar__new-appt"
                 onClick={() => navigate("/shop/appointments")}
               >
                 <IconPlus />
-                Nueva cita
+                <span className="bp-topbar__new-appt-label">Nueva cita</span>
               </button>
               <button type="button" className="bp-icon-btn" aria-label="Notificaciones">
                 <IconBell />
@@ -322,20 +441,26 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
                   <div className="bp-menu">
                     <div className="bp-menu__header">
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{display}</div>
-                      <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>{user.email}</div>
-                      <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>{roleLabel}</div>
+                      <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>
+                        {user.email}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--bp-text-tertiary)" }}>
+                        {roleLabel}
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      className="bp-menu__item"
-                      onClick={() => {
-                        setProfileOpen(false);
-                        navigate("/shop/settings");
-                      }}
-                    >
-                      <IconSettings />
-                      Ajustes
-                    </button>
+                    {manager ? (
+                      <button
+                        type="button"
+                        className="bp-menu__item"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          navigate("/shop/settings");
+                        }}
+                      >
+                        <IconSettings />
+                        Ajustes
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="bp-menu__item bp-menu__item--danger"

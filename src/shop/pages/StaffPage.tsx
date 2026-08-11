@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
 import { session } from "../../auth/session";
-import { isShopAdmin } from "../../auth/roles";
+import { isShopAdmin, shopRoleLabel } from "../../auth/roles";
 import { IconTeam, IconEdit, IconClose, IconAlert } from "../icons";
 import { staffLabel } from "../staffLabel";
 import { BusinessHoursEditor } from "../BusinessHoursEditor";
@@ -159,7 +159,11 @@ export function StaffPage() {
             <article className="bp-product-card" key={r.employee_id}>
               <div className="bp-product-card__top">
                 <div className="bp-person">
-                  <div className={`bp-avatar bp-avatar--lg ${r.role === "admin" ? "bp-avatar--violet" : ""}`}>
+                  <div
+                    className={`bp-avatar bp-avatar--lg ${
+                      r.role === "admin" || r.role === "owner" ? "bp-avatar--violet" : ""
+                    }`}
+                  >
                     {initials(r)}
                   </div>
                   <div>
@@ -173,8 +177,14 @@ export function StaffPage() {
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span className={`bp-badge ${r.role === "admin" ? "bp-badge--primary" : "bp-badge--neutral"}`}>
-                  {r.role === "admin" ? "Administrador" : "Staff"}
+                <span
+                  className={`bp-badge ${
+                    r.role === "admin" || r.role === "owner"
+                      ? "bp-badge--primary"
+                      : "bp-badge--neutral"
+                  }`}
+                >
+                  {shopRoleLabel(r.role)}
                 </span>
                 {r.phone ? <span className="bp-badge bp-badge--neutral">{r.phone}</span> : null}
                 <span className="bp-badge bp-badge--neutral">

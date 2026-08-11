@@ -45,7 +45,7 @@ type UsersListResponse = {
   items: ApiUserEnvelope[] | ApiUser[];
 };
 
-type UserRole = "admin" | "employee" | "superadmin";
+type UserRole = "owner" | "admin" | "employee" | "superadmin";
 
 type UserForm = {
   first_name: string;
@@ -188,9 +188,11 @@ export const Users: React.FC = () => {
         role: (
           api.role === "superadmin"
             ? "superadmin"
-            : api.role === "admin"
-              ? "admin"
-              : "employee"
+            : api.role === "owner"
+              ? "owner"
+              : api.role === "admin"
+                ? "admin"
+                : "employee"
         ) as UserRole,
         is_active: Boolean(api.is_active),
         business_id: bId ?? "",
@@ -359,6 +361,7 @@ export const Users: React.FC = () => {
         >
           <option value="">Todos los roles</option>
           <option value="superadmin">SuperAdmin</option>
+          <option value="owner">Propietario</option>
           <option value="admin">Admin</option>
           <option value="employee">Empleado</option>
         </select>
@@ -441,15 +444,22 @@ export const Users: React.FC = () => {
                   const bId = getBusinessId(u);
                   const bName = bId ? businessNameById.get(bId) : undefined;
                   const isSuper = u.role === "superadmin";
+                  const isOwner = u.role === "owner";
                   const isAdmin = u.role === "admin";
                   const displayName =
                     (u.full_name || "").trim() ||
                     [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
                     "—";
-                  const roleLabel = isSuper ? "SuperAdmin" : isAdmin ? "Admin" : "Empleado";
+                  const roleLabel = isSuper
+                    ? "SuperAdmin"
+                    : isOwner
+                      ? "Propietario"
+                      : isAdmin
+                        ? "Admin"
+                        : "Empleado";
                   const roleBadge = isSuper
                     ? "sa-badge--primary"
-                    : isAdmin
+                    : isOwner || isAdmin
                       ? "sa-badge--primary"
                       : "sa-badge--neutral";
                   return (
@@ -585,6 +595,7 @@ export const Users: React.FC = () => {
                   {(
                     [
                       { id: "superadmin", label: "SuperAdmin" },
+                      { id: "owner", label: "Propietario" },
                       { id: "admin", label: "Admin" },
                       { id: "employee", label: "Empleado" },
                     ] as const

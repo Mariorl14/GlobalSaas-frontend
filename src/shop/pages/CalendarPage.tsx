@@ -12,6 +12,8 @@ import {
 } from "../icons";
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
+import { isShopStaff } from "../../auth/roles";
+import { session } from "../../auth/session";
 
 type Appointment = {
   id: string;
@@ -360,19 +362,21 @@ export function CalendarPage() {
               Semana
             </button>
           </div>
-          <select
-            className="bp-select"
-            style={{ width: 200 }}
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-          >
-            <option value="">Todo el equipo</option>
-            {staff.map((s) => (
-              <option key={s.employee_id} value={s.employee_id}>
-                {staffLabel(s)}
-              </option>
-            ))}
-          </select>
+          {!isShopStaff(session.getUser()) ? (
+            <select
+              className="bp-select"
+              style={{ width: 200 }}
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+            >
+              <option value="">Todo el equipo</option>
+              {staff.map((s) => (
+                <option key={s.employee_id} value={s.employee_id}>
+                  {staffLabel(s)}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
       </div>
 
