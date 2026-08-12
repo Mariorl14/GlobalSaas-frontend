@@ -18,6 +18,7 @@ type StaffRow = {
   employee_id: string;
   user_id: string;
   email: string | null;
+  personal_email?: string | null;
   role: string | null;
   display_name: string | null;
   label?: string | null;
@@ -43,7 +44,12 @@ export function StaffPage() {
   const [items, setItems] = useState<StaffRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ display_name: "", phone: "", is_active: true });
+  const [form, setForm] = useState({
+    display_name: "",
+    phone: "",
+    personal_email: "",
+    is_active: true,
+  });
   const [followBusinessHours, setFollowBusinessHours] = useState(true);
   const [hours, setHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
   const [panelOpen, setPanelOpen] = useState(false);
@@ -67,6 +73,7 @@ export function StaffPage() {
     setForm({
       display_name: r.display_name ?? "",
       phone: r.phone ?? "",
+      personal_email: r.personal_email ?? "",
       is_active: r.is_active,
     });
     const follows =
@@ -100,6 +107,7 @@ export function StaffPage() {
       await axios.put(`${API_BASE_URL}/api/shop/staff/${editing}`, {
         display_name: form.display_name.trim() || null,
         phone: form.phone.trim() || null,
+        personal_email: form.personal_email.trim() || null,
         is_active: form.is_active,
         work_hours_json,
       });
@@ -252,6 +260,22 @@ export function StaffPage() {
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 />
+              </div>
+              <div className="bp-field">
+                <label className="bp-label">Email personal</label>
+                <input
+                  className="bp-input"
+                  type="email"
+                  value={form.personal_email}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, personal_email: e.target.value }))
+                  }
+                  placeholder="correo@gmail.com"
+                />
+                <p className="bp-hint" style={{ marginTop: 6 }}>
+                  Alertas de citas nuevas. El acceso al portal sigue siendo{" "}
+                  <strong>{editingRow.email}</strong>.
+                </p>
               </div>
               <label className="bp-switch-row">
                 <span className="bp-switch-row__text">Activo en el equipo</span>

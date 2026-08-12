@@ -12,6 +12,8 @@ import {
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
 import { payBadgeClass, payLabel } from "../paymentMethods";
+import { session } from "../../auth/session";
+import { isShopStaff } from "../../auth/roles";
 
 type Sale = {
   id: string;
@@ -125,6 +127,9 @@ function newKey() {
 }
 
 export function SalesPage() {
+  const user = session.getUser();
+  const staffOnly = isShopStaff(user);
+  const myEmployeeId = user?.employee_id ?? "";
   const [items, setItems] = useState<Sale[]>([]);
   const [clients, setClients] = useState<Opt[]>([]);
   const [services, setServices] = useState<Opt[]>([]);
@@ -228,7 +233,7 @@ export function SalesPage() {
   const openCreate = () => {
     setLines([]);
     setClientId("");
-    setBarberId("");
+    setBarberId(staffOnly ? myEmployeeId : "");
     setPayment("");
     setDiscount("0");
     setNotes("");
@@ -288,7 +293,7 @@ export function SalesPage() {
         `${API_BASE_URL}/api/shop/sales`,
         {
           client_id: clientId || null,
-          employee_id: barberId || null,
+          employee_id: (staffOnly ? myEmployeeId : barberId) || null,
           payment_method: payment,
           discount: disc,
           tax: 0,
@@ -429,14 +434,16 @@ export function SalesPage() {
             <input className="bp-input" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
           </>
         ) : null}
-        <select className="bp-select" style={{ width: 180 }} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-          <option value="">Todos los barberos</option>
-          {staff.map((s) => (
-            <option key={s.employee_id} value={s.employee_id}>
-              {staffLabel(s)}
-            </option>
-          ))}
-        </select>
+        {!staffOnly ? (
+          <select className="bp-select" style={{ width: 180 }} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+            <option value="">Todos los barberos</option>
+            {staff.map((s) => (
+              <option key={s.employee_id} value={s.employee_id}>
+                {staffLabel(s)}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select className="bp-select" style={{ width: 160 }} value={paymentF} onChange={(e) => setPaymentF(e.target.value)}>
           <option value="">Pago</option>
           <option value="cash">Cash</option>
@@ -553,14 +560,20 @@ export function SalesPage() {
                 </div>
                 <div className="bp-field">
                   <label className="bp-label">Barbero</label>
-                  <select className="bp-select" value={barberId} onChange={(e) => setBarberId(e.target.value)}>
-                    <option value="">Sin asignar</option>
-                    {staff.map((s) => (
-                      <option key={s.employee_id} value={s.employee_id}>
-                        {staffLabel(s)}
-                      </option>
-                    ))}
-                  </select>
+                  {staffOnly ? (
+                    <p className="bp-hint" style={{ margin: 0 }}>
+                      La venta se registra a tu nombre.
+                    </p>
+                  ) : (
+                    <select className="bp-select" value={barberId} onChange={(e) => setBarberId(e.target.value)}>
+                      <option value="">Sin asignar</option>
+                      {staff.map((s) => (
+                        <option key={s.employee_id} value={s.employee_id}>
+                          {staffLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 

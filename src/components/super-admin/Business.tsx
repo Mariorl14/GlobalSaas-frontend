@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios";
 import { mediaUrl } from "../../mediaUrl";
 import { API_BASE_URL } from "../../config";
+import { BookingQrCard } from "../../shop/BookingQrCard";
 import {
   IconPlus,
   IconEdit,
@@ -185,6 +186,9 @@ export const Business: React.FC = () => {
   const [cityFilter, setCityFilter] = useState("");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [qrPreview, setQrPreview] = useState<{ name: string; slug: string } | null>(
+    null,
+  );
 
   const emptyForm: BusinessForm = useMemo(
     () => ({
@@ -799,6 +803,17 @@ export const Business: React.FC = () => {
                         >
                           <IconExternal />
                         </button>
+                        <button
+                          type="button"
+                          className="sa-btn sa-btn--secondary sa-btn--sm"
+                          onClick={() =>
+                            setQrPreview({ name: b.name, slug: b.public_slug })
+                          }
+                          title="Código QR de reservas"
+                          disabled={!b.public_slug}
+                        >
+                          QR
+                        </button>
                       </div>
                     </td>
                     <td>
@@ -959,6 +974,17 @@ export const Business: React.FC = () => {
                     title="Abrir reserva"
                   >
                     <IconExternal />
+                  </button>
+                  <button
+                    type="button"
+                    className="sa-btn sa-btn--secondary sa-btn--sm"
+                    onClick={() =>
+                      setQrPreview({ name: b.name, slug: b.public_slug })
+                    }
+                    title="Código QR"
+                    disabled={!b.public_slug}
+                  >
+                    QR
                   </button>
                 </div>
               </div>
@@ -1317,6 +1343,15 @@ export const Business: React.FC = () => {
                         </button>
                       ) : null}
                     </div>
+                    {form.public_slug.trim() ? (
+                      <div style={{ marginTop: 16 }}>
+                        <BookingQrCard
+                          slug={form.public_slug}
+                          businessName={form.name}
+                          compact
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <span className="sa-hint">
@@ -1436,6 +1471,33 @@ export const Business: React.FC = () => {
                     ? "Crear negocio"
                     : "Guardar cambios"}
               </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {qrPreview ? (
+        <>
+          <div className="sa-panel__overlay" onClick={() => setQrPreview(null)} />
+          <div className="sa-panel" role="dialog" aria-modal="true" aria-label="Código QR">
+            <div className="sa-panel__header">
+              <div>
+                <h2 className="sa-panel__title">QR — {qrPreview.name}</h2>
+                <p className="sa-panel__subtitle">
+                  Descarga o imprime el código para colocarlo en el local.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="sa-icon-btn"
+                onClick={() => setQrPreview(null)}
+                aria-label="Cerrar"
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="sa-panel__body">
+              <BookingQrCard slug={qrPreview.slug} businessName={qrPreview.name} />
             </div>
           </div>
         </>

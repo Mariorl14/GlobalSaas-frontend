@@ -27,6 +27,7 @@ type ApiUserEmployee = { business_id?: string | null } | null;
 type ApiUser = {
   id: string;
   email: string;
+  personal_email?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   full_name?: string | null;
@@ -51,6 +52,7 @@ type UserForm = {
   first_name: string;
   last_name: string;
   email: string;
+  personal_email: string;
   password: string;
   role: UserRole;
   is_active: boolean;
@@ -115,6 +117,7 @@ export const Users: React.FC = () => {
       first_name: "",
       last_name: "",
       email: "",
+      personal_email: "",
       password: "",
       role: "employee",
       is_active: true,
@@ -184,6 +187,7 @@ export const Users: React.FC = () => {
         first_name: api.first_name ?? "",
         last_name: api.last_name ?? "",
         email: api.email ?? "",
+        personal_email: api.personal_email ?? "",
         password: "",
         role: (
           api.role === "superadmin"
@@ -208,7 +212,10 @@ export const Users: React.FC = () => {
   const validate = useCallback(() => {
     const missing: string[] = [];
     if (!form.first_name.trim()) missing.push("Nombre");
-    if (!form.email.trim()) missing.push("Email");
+    if (!form.email.trim()) missing.push("Email de acceso");
+    if (form.role !== "superadmin" && !form.personal_email.trim()) {
+      missing.push("Email personal");
+    }
     if (mode === "create" && !form.password) missing.push("Contraseña");
     if (form.role !== "superadmin" && !form.business_id) missing.push("Negocio");
     return missing;
@@ -230,6 +237,7 @@ export const Users: React.FC = () => {
             first_name: form.first_name.trim(),
             last_name: form.last_name.trim() || undefined,
             email: form.email.trim(),
+            personal_email: form.personal_email.trim() || undefined,
             password: form.password,
             role: form.role,
             is_active: form.is_active,
@@ -246,6 +254,7 @@ export const Users: React.FC = () => {
           last_name: form.last_name.trim() || null,
           is_active: form.is_active,
           role: form.role,
+          personal_email: form.personal_email.trim() || null,
         };
 
         if (form.email.trim()) userPatch.email = form.email.trim();
@@ -320,7 +329,12 @@ export const Users: React.FC = () => {
     if (!q) return items;
     return items.filter((u) => {
       const name = `${u.first_name || ""} ${u.last_name || ""} ${u.full_name || ""}`.toLowerCase();
-      return name.includes(q) || u.email.toLowerCase().includes(q);
+      const personal = (u.personal_email || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        personal.includes(q)
+      );
     });
   }, [items, search]);
 
@@ -567,14 +581,34 @@ export const Users: React.FC = () => {
               </div>
 
               <div className="sa-field">
-                <label className="sa-label">Email</label>
+                <label className="sa-label">Email de acceso</label>
                 <input
                   className="sa-input"
+                  type="email"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="user@demo.com"
+                  placeholder="andres@barberia.com"
                 />
+                <span className="sa-hint">Correo y contraseña para iniciar sesión en el portal.</span>
               </div>
+
+              {form.role !== "superadmin" ? (
+                <div className="sa-field">
+                  <label className="sa-label">Email personal</label>
+                  <input
+                    className="sa-input"
+                    type="email"
+                    value={form.personal_email}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, personal_email: e.target.value }))
+                    }
+                    placeholder="andres@gmail.com"
+                  />
+                  <span className="sa-hint">
+                    Aquí llegan las alertas de citas nuevas. No se usa para iniciar sesión.
+                  </span>
+                </div>
+              ) : null}
 
               <div className="sa-field">
                 <label className="sa-label">

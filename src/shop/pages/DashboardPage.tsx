@@ -796,13 +796,19 @@ export function DashboardPage() {
       <section className="bp-card">
         <div className="bp-card__header">
           <div>
-            <h3 className="bp-section-title">Rendimiento del equipo</h3>
-            <p className="bp-section-sub">Quién mueve la agenda — y el ingreso</p>
+            <h3 className="bp-section-title">
+              {admin ? "Rendimiento del equipo" : "Tu rendimiento"}
+            </h3>
+            <p className="bp-section-sub">
+              {admin ? "Quién mueve la agenda — y el ingreso" : "Tus citas e ingresos del periodo"}
+            </p>
           </div>
-          <Link to="/shop/staff" className="bp-btn bp-btn--ghost bp-btn--sm">
-            <IconTeam />
-            Equipo
-          </Link>
+          {admin ? (
+            <Link to="/shop/staff" className="bp-btn bp-btn--ghost bp-btn--sm">
+              <IconTeam />
+              Equipo
+            </Link>
+          ) : null}
         </div>
         <div className="bp-card__body">
           <div className="bp-staff-grid">

@@ -13,6 +13,8 @@ import {
 import { playAppointmentChime, unlockShopAudio } from "../sound";
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
+import { session } from "../../auth/session";
+import { isShopStaff } from "../../auth/roles";
 
 type Appointment = {
   id: string;
@@ -118,6 +120,9 @@ function rangeForPeriod(
 }
 
 export function AppointmentsPage() {
+  const user = session.getUser();
+  const staffOnly = isShopStaff(user);
+  const myEmployeeId = user?.employee_id ?? "";
   const [items, setItems] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Opt[]>([]);
   const [services, setServices] = useState<Opt[]>([]);
@@ -210,7 +215,7 @@ export function AppointmentsPage() {
     setForm({
       client_id: "",
       service_type_id: "",
-      employee_id: "",
+      employee_id: staffOnly ? myEmployeeId : "",
       start: "",
       end: "",
       status: "scheduled",
@@ -224,8 +229,13 @@ export function AppointmentsPage() {
 
   const create = async () => {
     setErr(null);
-    if (!form.service_type_id || !form.employee_id || !form.start || !form.end) {
-      setErr("Completa servicio, staff e horario.");
+    const assignedEmployeeId = staffOnly ? myEmployeeId : form.employee_id;
+    if (!form.service_type_id || !assignedEmployeeId || !form.start || !form.end) {
+      setErr(
+        staffOnly
+          ? "Completa servicio e horario. (Re-inicia sesión si no se detecta tu perfil.)"
+          : "Completa servicio, staff e horario.",
+      );
       return;
     }
     if (form.status === "completed" && !form.payment_method) {
@@ -263,7 +273,7 @@ export function AppointmentsPage() {
         {
           client_id: clientId,
           service_type_id: form.service_type_id,
-          employee_id: form.employee_id,
+          employee_id: assignedEmployeeId,
           start_time: new Date(form.start).toISOString(),
           end_time: new Date(form.end).toISOString(),
           status: form.status,
@@ -741,18 +751,24 @@ export function AppointmentsPage() {
               </div>
               <div className="bp-field">
                 <label className="bp-label">Barbero / staff</label>
-                <select
-                  className="bp-select"
-                  value={form.employee_id}
-                  onChange={(e) => setForm((f) => ({ ...f, employee_id: e.target.value }))}
-                >
-                  <option value="">Selecciona staff</option>
-                  {staff.map((s) => (
-                    <option key={s.employee_id} value={s.employee_id}>
-                      {staffLabel(s)}
-                    </option>
-                  ))}
-                </select>
+                {staffOnly ? (
+                  <p className="bp-hint" style={{ margin: 0 }}>
+                    La cita se asigna a ti automáticamente.
+                  </p>
+                ) : (
+                  <select
+                    className="bp-select"
+                    value={form.employee_id}
+                    onChange={(e) => setForm((f) => ({ ...f, employee_id: e.target.value }))}
+                  >
+                    <option value="">Selecciona staff</option>
+                    {staff.map((s) => (
+                      <option key={s.employee_id} value={s.employee_id}>
+                        {staffLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="bp-field__row">
                 <div className="bp-field">

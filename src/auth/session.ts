@@ -7,6 +7,8 @@ export type AuthUser = {
   role: string;
   is_active: boolean;
   business_id: string | null;
+  /** Present for shop users linked to an Employee row */
+  employee_id?: string | null;
 };
 
 const TOKEN_KEY = "auth.access_token";

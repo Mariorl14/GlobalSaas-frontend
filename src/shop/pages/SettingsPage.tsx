@@ -6,6 +6,7 @@ import { session } from "../../auth/session";
 import { isShopAdmin } from "../../auth/roles";
 import { IconAlert } from "../icons";
 import { BusinessHoursEditor } from "../BusinessHoursEditor";
+import { BookingQrCard } from "../BookingQrCard";
 import {
   parseBusinessHoursJson,
   serializeWeeklySchedule,
@@ -20,6 +21,7 @@ type Biz = {
   email: string;
   phone: string;
   logo_url: string | null;
+  public_slug?: string | null;
   business_hours_json: string | null;
   booking_notes: string | null;
   is_active: boolean;
@@ -298,6 +300,25 @@ export function SettingsPage() {
         </div>
         <div className="bp-settings-section__body">
           <BusinessHoursEditor value={hours} onChange={setHours} disabled={!admin} />
+        </div>
+      </section>
+
+      <section className="bp-settings-section">
+        <div className="bp-settings-section__head">
+          <h2 className="bp-card__title">Código QR de reservas</h2>
+          <p className="bp-card__subtitle">
+            Imprímelo y colócalo en el local para que los clientes agenden al escanear.
+          </p>
+        </div>
+        <div className="bp-settings-section__body">
+          {data?.public_slug ? (
+            <BookingQrCard slug={data.public_slug} businessName={data.name} />
+          ) : (
+            <p className="bp-hint">
+              Aún no hay enlace público. Pide al administrador de la plataforma que configure el
+              slug del negocio.
+            </p>
+          )}
         </div>
       </section>
 
