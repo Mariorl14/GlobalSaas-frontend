@@ -29,6 +29,7 @@ type StaffRow = {
   is_active: boolean;
   work_hours_json?: string | null;
   follows_business_hours?: boolean;
+  commission_percentage?: number | null;
 };
 
 function initials(row: StaffRow): string {
@@ -43,12 +44,14 @@ function initials(row: StaffRow): string {
 export function StaffPage() {
   const [items, setItems] = useState<StaffRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({
     display_name: "",
     phone: "",
     personal_email: "",
     is_active: true,
+    commission_percentage: "50",
   });
   const [followBusinessHours, setFollowBusinessHours] = useState(true);
   const [hours, setHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
@@ -68,6 +71,12 @@ export function StaffPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!okMsg) return;
+    const t = window.setTimeout(() => setOkMsg(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [okMsg]);
+
   const startEdit = (r: StaffRow) => {
     setEditing(r.employee_id);
     setForm({
@@ -75,6 +84,9 @@ export function StaffPage() {
       phone: r.phone ?? "",
       personal_email: r.personal_email ?? "",
       is_active: r.is_active,
+      commission_percentage: String(
+        r.commission_percentage != null ? r.commission_percentage : 50,
+      ),
     });
     const follows =
       r.follows_business_hours ?? !(r.work_hours_json && r.work_hours_json.trim());
@@ -104,15 +116,21 @@ export function StaffPage() {
     }
 
     try {
-      await axios.put(`${API_BASE_URL}/api/shop/staff/${editing}`, {
+      const pct = Number(form.commission_percentage);
+      const current = items.find((r) => r.employee_id === editing) ?? null;
+      const res = await axios.put<StaffRow>(`${API_BASE_URL}/api/shop/staff/${editing}`, {
         display_name: form.display_name.trim() || null,
         phone: form.phone.trim() || null,
         personal_email: form.personal_email.trim() || null,
         is_active: form.is_active,
         work_hours_json,
+        commission_percentage: pct,
       });
+      const name = staffLabel(current ?? res.data);
+      const savedPct = res.data.commission_percentage ?? pct;
       closePanel();
       await load();
+      setOkMsg(`La comisión de ${name} se actualizó a ${savedPct}%.`);
     } catch (e: unknown) {
       const msg =
         axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
@@ -130,10 +148,23 @@ export function StaffPage() {
         <div>
           <h1 className="bp-page__title">Equipo</h1>
           <p className="bp-page__subtitle">
-            Barberos y staff de tu negocio. Perfiles y días laborales para la agenda pública.
+            Barberos y staff de tu negocio. Perfiles, comisión de servicios y días laborales.
           </p>
         </div>
       </div>
+
+      {okMsg ? (
+        <div
+          className="bp-alert"
+          style={{
+            marginBottom: 16,
+            background: "var(--bp-success-soft)",
+            color: "var(--bp-success)",
+          }}
+        >
+          {okMsg}
+        </div>
+      ) : null}
 
       {err && !panelOpen ? (
         <div className="bp-alert bp-alert--error" style={{ marginBottom: 16 }}>
@@ -195,6 +226,9 @@ export function StaffPage() {
                   {shopRoleLabel(r.role)}
                 </span>
                 {r.phone ? <span className="bp-badge bp-badge--neutral">{r.phone}</span> : null}
+                <span className="bp-badge bp-badge--info">
+                  Comisión {r.commission_percentage != null ? r.commission_percentage : 50}%
+                </span>
                 <span className="bp-badge bp-badge--neutral">
                   {summarizeWorkDays(r.work_hours_json)}
                 </span>
@@ -289,6 +323,31 @@ export function StaffPage() {
                   <span className="bp-switch__thumb" />
                 </span>
               </label>
+
+              <div className="bp-field">
+                <label className="bp-label" htmlFor="staff-commission">
+                  Comisión de servicios
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 160 }}>
+                  <input
+                    id="staff-commission"
+                    className="bp-input"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="1"
+                    value={form.commission_percentage}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, commission_percentage: e.target.value }))
+                    }
+                  />
+                  <span>%</span>
+                </div>
+                <p className="bp-hint" style={{ marginTop: 6 }}>
+                  Porcentaje del precio del servicio que gana esta persona al completar una cita.
+                  El resto queda para el negocio. No aplica a venta de productos.
+                </p>
+              </div>
 
               <div className="bp-field" style={{ marginTop: 8 }}>
                 <label className="bp-label">Horario laboral</label>

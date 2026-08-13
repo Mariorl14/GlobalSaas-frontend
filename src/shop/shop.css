@@ -1439,6 +1439,37 @@
   color: var(--bp-text-tertiary);
 }
 
+.bp-quick-sale {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 160px minmax(180px, 1fr) auto;
+  gap: 14px 16px;
+  align-items: end;
+}
+.bp-quick-sale__action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 180px;
+}
+.bp-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bp-qty-stepper .bp-input {
+  width: 72px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .bp-quick-sale {
+    grid-template-columns: 1fr;
+  }
+  .bp-quick-sale__action {
+    align-items: stretch;
+  }
+}
+
 .bp-quick-actions {
   display: grid;
   gap: 8px;

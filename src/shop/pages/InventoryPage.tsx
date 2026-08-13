@@ -238,7 +238,7 @@ export function InventoryPage() {
     setMovePrice(p.price != null ? String(p.price) : "");
     setMoveCost(p.unit_cost != null ? String(p.unit_cost) : "");
     setMoveNotes("");
-    setSalePayment("");
+    setSalePayment("cash");
     setIdemKey(newIdempotencyKey());
     setErr(null);
     setMode("sale");
@@ -320,18 +320,29 @@ export function InventoryPage() {
     const qty = Number.parseInt(moveQty, 10);
     try {
       if (mode === "sale") {
-        await axios.post(
-          `${API_BASE_URL}/api/shop/inventory/${activeProduct.id}/sale`,
-          {
-            quantity: qty,
-            unit_sale_price: movePrice ? Number(movePrice) : undefined,
-            unit_cost: moveCost ? Number(moveCost) : undefined,
-            notes: moveNotes || undefined,
-            payment_method: salePayment,
-            idempotency_key: idemKey,
-          },
-        );
-        setOkMsg("Venta registrada");
+        const res = await axios.post<{
+          sale?: { total?: number };
+          product?: Row;
+        }>(`${API_BASE_URL}/api/shop/inventory/${activeProduct.id}/sale`, {
+          quantity: qty,
+          payment_method: salePayment,
+          idempotency_key: idemKey,
+        });
+        const soldName = res.data.product?.name ?? activeProduct.name;
+        const total = res.data.sale?.total ?? saleTotal;
+        setOkMsg(`Venta registrada — ${qty} × ${soldName} — ${moneyExact(total)}`);
+        if (res.data.product) {
+          setActiveProduct(res.data.product);
+          setItems((prev) =>
+            prev.map((row) => (row.id === res.data.product?.id ? res.data.product! : row)),
+          );
+        }
+        setMoveQty("1");
+        setSalePayment("cash");
+        setIdemKey(newIdempotencyKey());
+        await load();
+        setSaving(false);
+        return;
       } else {
         const mtype = mode === "add" ? moveType : moveType;
         await axios.post(
@@ -626,6 +637,18 @@ export function InventoryPage() {
               </button>
             </div>
             <div className="bp-panel__body">
+              {okMsg && mode === "sale" ? (
+                <div
+                  className="bp-alert"
+                  style={{
+                    marginBottom: 12,
+                    background: "var(--bp-success-soft)",
+                    color: "var(--bp-success)",
+                  }}
+                >
+                  {okMsg}
+                </div>
+              ) : null}
               {err ? (
                 <div className="bp-alert bp-alert--error">
                   <IconAlert />
@@ -773,34 +796,75 @@ export function InventoryPage() {
                   ) : null}
                   <div className="bp-field">
                     <label className="bp-label">Cantidad</label>
-                    <input
-                      className="bp-input"
-                      type="number"
-                      min={1}
-                      value={moveQty}
-                      onChange={(e) => setMoveQty(e.target.value)}
-                    />
-                  </div>
-                  {(mode === "sale" || moveType === "sale") && (
-                    <>
-                      <div className="bp-field">
-                        <label className="bp-label">Precio unitario de venta</label>
+                    {mode === "sale" ? (
+                      <div className="bp-qty-stepper">
+                        <button
+                          type="button"
+                          className="bp-btn bp-btn--secondary bp-btn--sm"
+                          disabled={(Number.parseInt(moveQty, 10) || 1) <= 1 || saving}
+                          onClick={() =>
+                            setMoveQty(String(Math.max(1, (Number.parseInt(moveQty, 10) || 1) - 1)))
+                          }
+                        >
+                          −
+                        </button>
                         <input
                           className="bp-input"
                           type="number"
-                          step="0.01"
-                          value={movePrice}
-                          onChange={(e) => setMovePrice(e.target.value)}
+                          min={1}
+                          max={activeProduct.stock}
+                          value={moveQty}
+                          onChange={(e) => setMoveQty(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void submitMovement();
+                            }
+                          }}
                         />
-                        <span className="bp-hint">Total: {moneyExact(saleTotal)}</span>
+                        <button
+                          type="button"
+                          className="bp-btn bp-btn--secondary bp-btn--sm"
+                          disabled={
+                            saving ||
+                            (Number.parseInt(moveQty, 10) || 1) >= activeProduct.stock
+                          }
+                          onClick={() =>
+                            setMoveQty(
+                              String(
+                                Math.min(
+                                  activeProduct.stock,
+                                  (Number.parseInt(moveQty, 10) || 1) + 1,
+                                ),
+                              ),
+                            )
+                          }
+                        >
+                          +
+                        </button>
                       </div>
+                    ) : (
+                      <input
+                        className="bp-input"
+                        type="number"
+                        min={1}
+                        value={moveQty}
+                        onChange={(e) => setMoveQty(e.target.value)}
+                      />
+                    )}
+                  </div>
+                  {mode === "sale" ? (
+                    <>
+                      <p className="bp-hint" style={{ marginTop: 0 }}>
+                        Precio {moneyExact(activeProduct.price)} · Total {moneyExact(saleTotal)}
+                      </p>
                       <PaymentMethodField
                         value={salePayment}
-                        onChange={(v) => setSalePayment(v)}
+                        onChange={(v) => setSalePayment(v || "cash")}
                       />
                     </>
-                  )}
-                  {(mode === "add" || mode === "sale") && (
+                  ) : null}
+                  {mode === "add" ? (
                     <div className="bp-field">
                       <label className="bp-label">Costo unitario (opcional)</label>
                       <input
@@ -811,16 +875,18 @@ export function InventoryPage() {
                         onChange={(e) => setMoveCost(e.target.value)}
                       />
                     </div>
-                  )}
-                  <div className="bp-field">
-                    <label className="bp-label">Notas</label>
-                    <input
-                      className="bp-input"
-                      value={moveNotes}
-                      onChange={(e) => setMoveNotes(e.target.value)}
-                      placeholder="Opcional"
-                    />
-                  </div>
+                  ) : null}
+                  {mode !== "sale" ? (
+                    <div className="bp-field">
+                      <label className="bp-label">Notas</label>
+                      <input
+                        className="bp-input"
+                        value={moveNotes}
+                        onChange={(e) => setMoveNotes(e.target.value)}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  ) : null}
                   {projectedQty != null ? (
                     <div className="bp-obs__item">
                       <span className="bp-obs__dot bp-obs__dot--info" />
@@ -929,7 +995,7 @@ export function InventoryPage() {
                   disabled={saving || (projectedQty != null && projectedQty < 0)}
                   onClick={() => void submitMovement()}
                 >
-                  {saving ? "Procesando…" : "Confirmar"}
+                  {saving ? "Registrando…" : mode === "sale" ? "Registrar venta" : "Confirmar"}
                 </button>
               ) : null}
             </div>

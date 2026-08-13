@@ -11,6 +11,7 @@ import {
 } from "../icons";
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
+import { ProductQuickSale } from "../ProductQuickSale";
 import { payBadgeClass, payLabel } from "../paymentMethods";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
@@ -143,18 +144,22 @@ export function SalesPage() {
   const [addRef, setAddRef] = useState("");
 
   const loadRefs = useCallback(async () => {
-    const [c, s, p, t] = await Promise.all([
+    const [c, s, t] = await Promise.all([
       axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/clients`),
       axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/services`),
-      axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/inventory`, {
-        params: { sellable: true },
-      }),
       axios.get<{ items: StaffOpt[] }>(`${API_BASE_URL}/api/shop/staff`),
     ]);
     setClients(c.data.items);
     setServices(s.data.items);
-    setProducts(p.data.items);
     setStaff(t.data.items);
+    try {
+      const p = await axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/inventory`, {
+        params: { sellable: true },
+      });
+      setProducts(p.data.items);
+    } catch {
+      setProducts([]);
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -345,6 +350,13 @@ export function SalesPage() {
           </button>
         </div>
       </div>
+
+      <ProductQuickSale
+        onSold={() => {
+          void load();
+          void loadRefs();
+        }}
+      />
 
       {ok ? (
         <div

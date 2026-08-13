@@ -90,6 +90,9 @@ type InsightsPayload = {
     employee_id: string;
     display_name: string;
     revenue: number;
+    staff_earnings?: number;
+    business_share?: number;
+    commission_percentage?: number;
     appointments_completed: number;
     appointments_total: number;
     average_ticket: number;
@@ -821,20 +824,20 @@ export function DashboardPage() {
                 </div>
                 <div className="bp-staff-stats">
                   <div>
-                    <span>Ingresos</span>
+                    <span>Servicios (bruto)</span>
                     <strong>{money(st.revenue)}</strong>
+                  </div>
+                  <div>
+                    <span>Comisión {st.commission_percentage != null ? `${st.commission_percentage}%` : ""}</span>
+                    <strong>{money(st.staff_earnings ?? 0)}</strong>
+                  </div>
+                  <div>
+                    <span>Negocio</span>
+                    <strong>{money(st.business_share ?? st.revenue)}</strong>
                   </div>
                   <div>
                     <span>Citas OK</span>
                     <strong>{st.appointments_completed}</strong>
-                  </div>
-                  <div>
-                    <span>Ticket</span>
-                    <strong>{money(st.average_ticket)}</strong>
-                  </div>
-                  <div>
-                    <span>Ocupación</span>
-                    <strong>{pct(st.occupancy)}</strong>
                   </div>
                 </div>
               </div>
