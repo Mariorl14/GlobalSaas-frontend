@@ -1,5 +1,13 @@
 import type { Slot } from "./bookingApi";
 
+function formatSlotLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export function TimeSlotPicker({
   slots,
   value,
@@ -29,8 +37,6 @@ export function TimeSlotPicker({
   return (
     <div className="pb-slot-grid" role="listbox" aria-label="Horarios disponibles">
       {slots.map((s) => {
-        const t = new Date(s.start);
-        const label = t.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
         const sel = value === s.start;
         return (
           <button
@@ -39,13 +45,10 @@ export function TimeSlotPicker({
             role="option"
             aria-selected={sel}
             className={`pb-slot-btn${sel ? " pb-slot-btn--selected" : ""}`}
-            onClick={(e) => {
-              e.preventDefault();
-              (e.currentTarget as HTMLButtonElement).blur();
-              onChange(s.start);
-            }}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onChange(s.start)}
           >
-            {label}
+            {formatSlotLabel(s.start)}
           </button>
         );
       })}

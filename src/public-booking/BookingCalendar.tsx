@@ -81,6 +81,7 @@ export function BookingCalendar({
               type="button"
               disabled={isPast}
               className={cls}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onSelectDate(iso)}
               aria-label={`Elegir ${iso}`}
               aria-pressed={isSel}

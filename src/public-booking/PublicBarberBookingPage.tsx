@@ -264,7 +264,7 @@ export function PublicBarberBookingPage() {
   }
 
   return (
-    <div className="pb-root pb-hero-wrap" style={{ minHeight: "100vh", color: "#0f172a" }}>
+    <div className="pb-root">
       <div className="pb-inner">
         <header className="pb-hero">
           <p className="pb-hero-kicker">Reserva en línea</p>

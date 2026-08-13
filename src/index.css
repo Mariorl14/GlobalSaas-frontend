@@ -6,7 +6,6 @@
   /* Force light UI. Huawei / Android dark mode was inverting the booking page
      (especially after tapping a time slot / focusing a button). */
   color-scheme: light;
-  color-scheme: light only;
   color: #0f172a;
   background-color: #ffffff;
 
@@ -18,7 +17,6 @@
 
 html {
   color-scheme: light;
-  color-scheme: light only;
 }
 
 html,
@@ -34,7 +32,6 @@ body,
   body,
   #root {
     color-scheme: light;
-    color-scheme: light only;
     background-color: #ffffff;
     color: #0f172a;
   }

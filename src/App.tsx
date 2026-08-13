@@ -33,6 +33,7 @@ import { SalesPage } from "./shop/pages/SalesPage.tsx";
 import { StaffPage } from "./shop/pages/StaffPage.tsx";
 import { SettingsPage } from "./shop/pages/SettingsPage.tsx";
 import { PublicBarberBookingPage } from "./public-booking/PublicBarberBookingPage.tsx";
+import { BookingErrorBoundary } from "./public-booking/BookingErrorBoundary.tsx";
 import { API_BASE_URL } from "./config";
 
 function PostLoginRedirect() {
@@ -437,7 +438,14 @@ function App() {
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="/dashboard" element={<Navigate to="/super-admin" replace />} />
-      <Route path="/book/:businessSlug" element={<PublicBarberBookingPage />} />
+      <Route
+        path="/book/:businessSlug"
+        element={
+          <BookingErrorBoundary>
+            <PublicBarberBookingPage />
+          </BookingErrorBoundary>
+        }
+      />
     </Routes>
   );
 }
