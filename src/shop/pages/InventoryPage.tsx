@@ -16,6 +16,7 @@ import {
 } from "../icons";
 
 import { PaymentMethodField } from "../PaymentMethodField";
+import { moneyExact } from "../../money";
 
 type ItemKind = "RETAIL_PRODUCT" | "OPERATING_SUPPLY" | "UNCLASSIFIED";
 
@@ -557,9 +558,9 @@ export function InventoryPage() {
                     </span>
                     <span className="bp-product-card__price" style={{ fontSize: 16 }}>
                       {p.item_kind === "RETAIL_PRODUCT" && p.price != null
-                        ? `$${Number(p.price).toFixed(2)}`
+                        ? moneyExact(Number(p.price))
                         : p.unit_cost != null
-                          ? `Costo $${Number(p.unit_cost).toFixed(2)}`
+                          ? `Costo ${moneyExact(Number(p.unit_cost))}`
                           : "—"}
                     </span>
                   </div>
@@ -791,7 +792,7 @@ export function InventoryPage() {
                           value={movePrice}
                           onChange={(e) => setMovePrice(e.target.value)}
                         />
-                        <span className="bp-hint">Total: ${saleTotal.toFixed(2)}</span>
+                        <span className="bp-hint">Total: {moneyExact(saleTotal)}</span>
                       </div>
                       <PaymentMethodField
                         value={salePayment}
@@ -897,7 +898,7 @@ export function InventoryPage() {
                               : "—"}
                             {" · "}
                             {m.quantity} uds · {m.quantity_before} → {m.quantity_after}
-                            {m.total_revenue != null ? ` · $${m.total_revenue.toFixed(2)}` : ""}
+                            {m.total_revenue != null ? ` · ${moneyExact(m.total_revenue)}` : ""}
                             {m.notes ? ` · ${m.notes}` : ""}
                           </div>
                         </div>

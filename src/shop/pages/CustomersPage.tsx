@@ -4,6 +4,7 @@ import { API_BASE_URL } from "../../config";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
 import { IconPlus, IconClose, IconSearch, IconUsers, IconAlert, IconEdit } from "../icons";
+import { moneyExact } from "../../money";
 
 type Client = {
   id: string;
@@ -381,7 +382,7 @@ export function CustomersPage() {
                           <div className="bp-timeline__dot" />
                           <div>
                             <div className="bp-timeline__title">
-                              {s.invoice_number} · ${Number(s.total).toFixed(2)}
+                              {s.invoice_number} · {moneyExact(Number(s.total))}
                             </div>
                             <div className="bp-timeline__meta">
                               {s.created_at

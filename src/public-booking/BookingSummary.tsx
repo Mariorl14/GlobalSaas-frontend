@@ -1,5 +1,6 @@
 import type { PublicBusiness, PublicService, PublicBarber, Slot } from "./bookingApi";
 import type { CustomerFormValues } from "./CustomerBookingForm";
+import { moneyExact } from "../money";
 
 export function BookingSummary({
   business,
@@ -54,7 +55,7 @@ export function BookingSummary({
             {service?.name ?? "—"}
             {service ? (
               <span className="pb-summary-value--muted" style={{ display: "block", marginTop: "0.25rem" }}>
-                {service.duration} min · ${service.price.toFixed(2)}
+                {service.duration} min · {moneyExact(service.price)}
               </span>
             ) : null}
           </div>

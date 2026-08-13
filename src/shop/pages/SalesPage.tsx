@@ -14,6 +14,7 @@ import { PaymentMethodField } from "../PaymentMethodField";
 import { payBadgeClass, payLabel } from "../paymentMethods";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
+import { money, moneyExact } from "../../money";
 
 type Sale = {
   id: string;
@@ -102,22 +103,6 @@ function rangeFor(period: Period, from: string, to: string) {
     return out;
   }
   return { from: today.toISOString(), to: endOfDay(today).toISOString() };
-}
-
-function money(n: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function moneyExact(n: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 function newKey() {
@@ -598,7 +583,7 @@ export function SalesPage() {
                     <option value="">Selecciona…</option>
                     {(addType === "service" ? services : products).map((x) => (
                       <option key={x.id} value={x.id}>
-                        {x.name} · ${Number(x.price ?? 0).toFixed(2)}
+                        {x.name} · {moneyExact(Number(x.price ?? 0))}
                       </option>
                     ))}
                   </select>

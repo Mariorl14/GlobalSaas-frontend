@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
 import { IconPlus, IconEdit, IconTrash, IconClose, IconScissors, IconAlert, IconSearch } from "../icons";
+import { moneyExact } from "../../money";
 
 type Service = {
   id: string;
@@ -188,7 +189,7 @@ export function ServicesPage() {
                   {s.is_active ? "Activo" : "Inactivo"}
                 </span>
               </div>
-              <div className="bp-product-card__price">${s.price.toFixed(2)}</div>
+              <div className="bp-product-card__price">{moneyExact(s.price)}</div>
               <div className="bp-product-card__footer">
                 <button type="button" className="bp-btn bp-btn--secondary bp-btn--sm" onClick={() => startEdit(s)}>
                   <IconEdit />

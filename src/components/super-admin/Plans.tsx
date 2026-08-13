@@ -13,6 +13,7 @@ import {
   IconAlert,
   IconSort,
 } from "./icons";
+import { moneyExact } from "../../money";
 
 type Plan = {
   id: string;
@@ -38,11 +39,7 @@ type PlanForm = {
 };
 
 function formatPrice(value: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(value);
+  return moneyExact(value);
 }
 
 type SortDir = "asc" | "desc";

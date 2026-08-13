@@ -1,4 +1,5 @@
 import type { PublicService } from "./bookingApi";
+import { moneyExact } from "../money";
 
 export function ServiceSelector({
   services,
@@ -27,7 +28,7 @@ export function ServiceSelector({
           <option value="">Selecciona un servicio</option>
           {services.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} · {s.duration} min · ${s.price.toFixed(2)}
+              {s.name} · {s.duration} min · {moneyExact(s.price)}
             </option>
           ))}
         </select>

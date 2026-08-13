@@ -24,6 +24,7 @@ import {
   IconScissors,
   IconTeam,
 } from "../icons";
+import { money, moneyExact } from "../../money";
 
 type RangeKey =
   | "today"
@@ -182,24 +183,6 @@ function greeting(): string {
   if (h < 12) return "Buenos días";
   if (h < 19) return "Buenas tardes";
   return "Buenas noches";
-}
-
-function money(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function moneyExact(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 function pct(n: number | null | undefined): string {

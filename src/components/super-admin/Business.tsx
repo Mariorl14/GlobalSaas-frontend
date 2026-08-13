@@ -3,6 +3,7 @@ import axios from "axios";
 import { mediaUrl } from "../../mediaUrl";
 import { API_BASE_URL } from "../../config";
 import { BookingQrCard } from "../../shop/BookingQrCard";
+import { formatMoney, moneyExact } from "../../money";
 import {
   IconPlus,
   IconEdit,
@@ -107,25 +108,12 @@ const TIMEZONES = [
 ];
 
 function formatPlanPrice(value: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatMoney(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "—";
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return moneyExact(value);
 }
 
 function formatStat(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
-  return new Intl.NumberFormat("es-MX").format(value);
+  return new Intl.NumberFormat("es-CR").format(value);
 }
 
 function typeLabel(value: string | null | undefined): string {
