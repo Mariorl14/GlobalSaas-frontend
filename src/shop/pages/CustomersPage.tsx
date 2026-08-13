@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
+import { session } from "../../auth/session";
+import { isShopStaff } from "../../auth/roles";
 import { IconPlus, IconClose, IconSearch, IconUsers, IconAlert, IconEdit } from "../icons";
 
 type Client = {
@@ -18,6 +20,7 @@ function initials(first: string, last: string): string {
 }
 
 export function CustomersPage() {
+  const staffOnly = isShopStaff(session.getUser());
   const [items, setItems] = useState<Client[]>([]);
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Client | null>(null);
@@ -143,7 +146,9 @@ export function CustomersPage() {
         <div>
           <h1 className="bp-page__title">Clientes</h1>
           <p className="bp-page__subtitle">
-            Perfiles de tu clientela. Historial, notas y contacto en un solo lugar.
+            {staffOnly
+              ? "Solo ves clientes con citas o ventas tuyas, o que te tienen como preferido."
+              : "Perfiles de tu clientela. Historial, notas y contacto en un solo lugar."}
           </p>
         </div>
         <div className="bp-page__actions">
