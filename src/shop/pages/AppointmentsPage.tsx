@@ -37,9 +37,15 @@ function naiveLocalIso(d = new Date()): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-function walkInClockLabel(d = new Date()): string {
-  const time = d.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
-  return `Hoy · ${time}`;
+function formatClock(d: Date): string {
+  return d.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function walkInWindowLabel(durationMin?: number, d = new Date()): string {
+  const minutes = Math.max(1, Number(durationMin) || 30);
+  const end = d;
+  const start = new Date(end.getTime() - minutes * 60_000);
+  return `Hoy · ${formatClock(start)} – ${formatClock(end)} (${minutes} min)`;
 }
 
 type Opt = { id: string; name?: string; first_name?: string; last_name?: string; email?: string };
@@ -266,9 +272,9 @@ export function AppointmentsPage() {
       return;
     }
     const svc = services.find((s) => s.id === walkIn.service_type_id);
-    const start = new Date();
+    const completedAt = new Date();
     const minutes = Math.max(1, Number(svc?.duration) || 30);
-    const end = new Date(start.getTime() + minutes * 60_000);
+    const startedAt = new Date(completedAt.getTime() - minutes * 60_000);
     setSaving(true);
     try {
       const created = await axios.post<{ id: string }>(
@@ -280,8 +286,9 @@ export function AppointmentsPage() {
           service_type_id: walkIn.service_type_id,
           employee_id: assignedEmployeeId,
           payment_method: walkIn.payment_method,
-          start_time: naiveLocalIso(start),
-          end_time: naiveLocalIso(end),
+          completed_at: naiveLocalIso(completedAt),
+          start_time: naiveLocalIso(startedAt),
+          end_time: naiveLocalIso(completedAt),
         },
       );
       if (created.data?.id) rememberAppointmentIds([created.data.id]);
@@ -764,7 +771,9 @@ export function AppointmentsPage() {
                 </div>
               ) : null}
               <p className="bp-hint" style={{ marginTop: 0 }}>
-                {walkInClockLabel()}
+                {walkInWindowLabel(
+                  services.find((s) => s.id === walkIn.service_type_id)?.duration,
+                )}
               </p>
               <div className="bp-field">
                 <label className="bp-label">Nombre</label>
