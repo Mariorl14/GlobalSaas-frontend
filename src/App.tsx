@@ -34,6 +34,7 @@ import { StaffPage } from "./shop/pages/StaffPage.tsx";
 import { SettingsPage } from "./shop/pages/SettingsPage.tsx";
 import { PublicBarberBookingPage } from "./public-booking/PublicBarberBookingPage.tsx";
 import { BookingErrorBoundary } from "./public-booking/BookingErrorBoundary.tsx";
+import { RescheduleConfirmPage } from "./public-booking/RescheduleConfirmPage.tsx";
 import { API_BASE_URL } from "./config";
 
 function PostLoginRedirect() {
@@ -445,6 +446,10 @@ function App() {
             <PublicBarberBookingPage />
           </BookingErrorBoundary>
         }
+      />
+      <Route
+        path="/appointment/reschedule/confirm/:token"
+        element={<RescheduleConfirmPage />}
       />
     </Routes>
   );

@@ -2262,6 +2262,11 @@
   opacity: 0.55;
   text-decoration: line-through;
 }
+.bp-cal-event.is-pending,
+.bp-cal-week__event.is-pending {
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 1px;
+}
 .bp-cal-legend {
   display: flex;
   flex-wrap: wrap;

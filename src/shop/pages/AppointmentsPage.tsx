@@ -14,6 +14,10 @@ import {
 import { playAppointmentChime, unlockShopAudio } from "../sound";
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
+import {
+  AppointmentCancelDialog,
+  AppointmentRescheduleDialog,
+} from "../AppointmentActionDialogs";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
 import { moneyExact } from "../../money";
@@ -24,6 +28,7 @@ type Appointment = {
   service_type_id: string;
   employee_id: string;
   client_name: string;
+  client_email?: string | null;
   start_time: string | null;
   end_time: string | null;
   status: string;
@@ -65,6 +70,7 @@ function statusLabel(status: string): string {
     cancelled: "Cancelada",
     no_show: "No asistió",
     pending: "Pendiente",
+    reschedule_pending: "Por confirmar",
   };
   return map[status] ?? status;
 }
@@ -181,6 +187,10 @@ export function AppointmentsPage() {
     end_time: string;
   } | null>(null);
   const [completePay, setCompletePay] = useState("");
+  const [actionTarget, setActionTarget] = useState<{
+    kind: "reschedule" | "cancel";
+    appointment: Appointment;
+  } | null>(null);
 
   const [form, setForm] = useState({
     client_id: "",
@@ -454,6 +464,13 @@ export function AppointmentsPage() {
       setErr(null);
       return;
     }
+    if (status === "canceled" || status === "cancelled") {
+      const a = items.find((x) => x.id === id);
+      if (!a) return;
+      setActionTarget({ kind: "cancel", appointment: a });
+      setErr(null);
+      return;
+    }
     void patchStatus(id, status);
   };
 
@@ -629,6 +646,7 @@ export function AppointmentsPage() {
           <option value="completed">Completada</option>
           <option value="canceled">Cancelada</option>
           <option value="no_show">No asistió</option>
+          <option value="reschedule_pending">Por confirmar</option>
         </select>
       </div>
 
@@ -737,7 +755,21 @@ export function AppointmentsPage() {
                         <option value="completed">Completada</option>
                         <option value="canceled">Cancelada</option>
                         <option value="no_show">No asistió</option>
+                        {a.status === "reschedule_pending" ? (
+                          <option value="reschedule_pending">Por confirmar</option>
+                        ) : null}
                       </select>
+                      <button
+                        type="button"
+                        className="bp-btn bp-btn--secondary bp-btn--sm"
+                        disabled={a.status === "completed" || a.status === "canceled"}
+                        onClick={() => {
+                          setActionTarget({ kind: "reschedule", appointment: a });
+                          setErr(null);
+                        }}
+                      >
+                        Reprogramar
+                      </button>
                       <button
                         type="button"
                         className="bp-btn bp-btn--danger bp-btn--sm"
@@ -1217,6 +1249,34 @@ export function AppointmentsPage() {
             </div>
           </div>
         </>
+      ) : null}
+
+      {actionTarget?.kind === "reschedule" ? (
+        <AppointmentRescheduleDialog
+          appointment={actionTarget.appointment}
+          serviceName={serviceName(actionTarget.appointment.service_type_id)}
+          barberName={resolveStaffLabel(actionTarget.appointment.employee_id)}
+          onClose={() => setActionTarget(null)}
+          onDone={async (warning) => {
+            setActionTarget(null);
+            await load();
+            setErr(warning ?? null);
+          }}
+        />
+      ) : null}
+
+      {actionTarget?.kind === "cancel" ? (
+        <AppointmentCancelDialog
+          appointment={actionTarget.appointment}
+          serviceName={serviceName(actionTarget.appointment.service_type_id)}
+          barberName={resolveStaffLabel(actionTarget.appointment.employee_id)}
+          onClose={() => setActionTarget(null)}
+          onDone={async (warning) => {
+            setActionTarget(null);
+            await load();
+            setErr(warning ?? null);
+          }}
+        />
       ) : null}
     </div>
   );

@@ -13,6 +13,10 @@ import {
 import { staffLabel } from "../staffLabel";
 import { staffSwatch } from "../staffColors";
 import { PaymentMethodField } from "../PaymentMethodField";
+import {
+  AppointmentCancelDialog,
+  AppointmentRescheduleDialog,
+} from "../AppointmentActionDialogs";
 import { isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 
@@ -28,6 +32,7 @@ type Appointment = {
   end_time: string | null;
   status: string;
   notes: string | null;
+  proposed_start_time?: string | null;
 };
 
 type StaffOpt = {
@@ -64,6 +69,7 @@ function statusLabel(status: string): string {
     cancelled: "Cancelada",
     no_show: "No asistió",
     pending: "Pendiente",
+    reschedule_pending: "Por confirmar",
   };
   return map[status] ?? status;
 }
@@ -126,6 +132,7 @@ export function CalendarPage() {
   const [completePayOpen, setCompletePayOpen] = useState(false);
   const [completePay, setCompletePay] = useState("");
   const [saving, setSaving] = useState(false);
+  const [actionDialog, setActionDialog] = useState<"reschedule" | "cancel" | null>(null);
 
   const range = useMemo(() => {
     if (view === "day") {
@@ -457,7 +464,7 @@ export function CalendarPage() {
                 <button
                   type="button"
                   key={a.id}
-                  className={`bp-cal-event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}`}
+                  className={`bp-cal-event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}${a.status === "reschedule_pending" ? " is-pending" : ""}`}
                   style={eventStyle(a.employee_id, { top, height })}
                   onClick={() => setSelected(a)}
                   draggable
@@ -469,7 +476,10 @@ export function CalendarPage() {
                 >
                   <strong>{a.client_name}</strong>
                   <span>{serviceName(a.service_type_id)}</span>
-                  <span>{resolveStaffLabel(a.employee_id)}</span>
+                  <span>
+                    {resolveStaffLabel(a.employee_id)}
+                    {a.status === "reschedule_pending" ? " · Por confirmar" : ""}
+                  </span>
                 </button>
               );
             })}
@@ -497,7 +507,7 @@ export function CalendarPage() {
                       <button
                         type="button"
                         key={a.id}
-                        className={`bp-cal-week__event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}`}
+                        className={`bp-cal-week__event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}${a.status === "reschedule_pending" ? " is-pending" : ""}`}
                         style={eventStyle(a.employee_id)}
                         onClick={() => setSelected(a)}
                       >
@@ -510,7 +520,10 @@ export function CalendarPage() {
                             : ""}
                         </span>
                         <strong>{a.client_name}</strong>
-                        <em>{serviceName(a.service_type_id)}</em>
+                        <em>
+                          {serviceName(a.service_type_id)}
+                          {a.status === "reschedule_pending" ? " · Por confirmar" : ""}
+                        </em>
                       </button>
                     ))
                   )}
@@ -543,6 +556,20 @@ export function CalendarPage() {
                 <span className={`bp-badge ${statusBadge(selected.status)}`}>
                   {statusLabel(selected.status)}
                 </span>
+                {selected.status === "reschedule_pending" ? (
+                  <div style={{ marginTop: 8, fontSize: 13, color: "var(--bp-text-muted, #64748b)" }}>
+                    Esperando confirmación del cliente
+                    {selected.proposed_start_time
+                      ? ` · propuesto: ${new Date(selected.proposed_start_time).toLocaleString("es-MX", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : ""}
+                  </div>
+                ) : null}
               </div>
               <div className="bp-field">
                 <label className="bp-label">Teléfono</label>
@@ -607,10 +634,24 @@ export function CalendarPage() {
               <button
                 type="button"
                 className="bp-btn bp-btn--secondary bp-btn--sm"
-                disabled={saving}
-                onClick={() => void patchStatus(selected.id, "canceled")}
+                disabled={saving || selected.status === "completed" || selected.status === "canceled"}
+                onClick={() => {
+                  setActionDialog("reschedule");
+                  setErr(null);
+                }}
               >
-                Cancelar cita
+                Reprogramar
+              </button>
+              <button
+                type="button"
+                className="bp-btn bp-btn--secondary bp-btn--sm"
+                disabled={saving || selected.status === "completed" || selected.status === "canceled"}
+                onClick={() => {
+                  setActionDialog("cancel");
+                  setErr(null);
+                }}
+              >
+                Cancelar
               </button>
               <button
                 type="button"
@@ -630,6 +671,36 @@ export function CalendarPage() {
             </div>
           </div>
         </>
+      ) : null}
+
+      {actionDialog === "reschedule" && selected ? (
+        <AppointmentRescheduleDialog
+          appointment={selected}
+          serviceName={serviceName(selected.service_type_id)}
+          barberName={resolveStaffLabel(selected.employee_id)}
+          onClose={() => setActionDialog(null)}
+          onDone={async (warning) => {
+            setActionDialog(null);
+            await load();
+            setSelected(null);
+            setErr(warning ?? null);
+          }}
+        />
+      ) : null}
+
+      {actionDialog === "cancel" && selected ? (
+        <AppointmentCancelDialog
+          appointment={selected}
+          serviceName={serviceName(selected.service_type_id)}
+          barberName={resolveStaffLabel(selected.employee_id)}
+          onClose={() => setActionDialog(null)}
+          onDone={async (warning) => {
+            setActionDialog(null);
+            await load();
+            setSelected(null);
+            setErr(warning ?? null);
+          }}
+        />
       ) : null}
 
       {completePayOpen && selected ? (
