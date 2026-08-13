@@ -458,6 +458,9 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="bp-page__actions">
+          <Link to="/shop/appointments?walkin=1" className="bp-btn bp-btn--secondary">
+            Walk-in
+          </Link>
           <Link to="/shop/appointments" className="bp-btn bp-btn--primary">
             <IconPlus />
             Nueva cita
@@ -688,6 +691,15 @@ export function DashboardPage() {
             </div>
             <div className="bp-card__body" style={{ paddingTop: 14 }}>
               <div className="bp-quick-actions">
+                <Link to="/shop/appointments?walkin=1" className="bp-quick-action">
+                  <span className="bp-quick-action__icon">
+                    <IconPlus />
+                  </span>
+                  Walk-in
+                  <span className="bp-quick-action__arrow">
+                    <IconChevronRight />
+                  </span>
+                </Link>
                 <Link to="/shop/appointments" className="bp-quick-action">
                   <span className="bp-quick-action__icon">
                     <IconPlus />

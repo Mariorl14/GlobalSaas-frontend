@@ -39,7 +39,11 @@ export function TimeSlotPicker({
             role="option"
             aria-selected={sel}
             className={`pb-slot-btn${sel ? " pb-slot-btn--selected" : ""}`}
-            onClick={() => onChange(s.start)}
+            onClick={(e) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLButtonElement).blur();
+              onChange(s.start);
+            }}
           >
             {label}
           </button>

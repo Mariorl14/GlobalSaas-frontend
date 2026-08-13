@@ -2122,14 +2122,28 @@
   }
   .bp-page__actions {
     width: 100%;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
   .bp-page__actions .bp-btn {
-    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    flex: none;
   }
   .bp-panel {
-    width: min(100vw - 16px, 480px);
-    max-height: min(92vh, 900px);
+    inset: 0;
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border-left: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bp-topbar__walkin {
+    flex-shrink: 0;
+    padding-left: 10px;
+    padding-right: 10px;
   }
   .bp-topbar__new-appt-label {
     display: none;

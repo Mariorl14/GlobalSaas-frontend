@@ -3,14 +3,41 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Force light UI. Huawei / Android dark mode was inverting the booking page
+     (especially after tapping a time slot / focusing a button). */
+  color-scheme: light;
+  color-scheme: light only;
+  color: #0f172a;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  color-scheme: light;
+  color-scheme: light only;
+}
+
+html,
+body,
+#root {
+  background-color: #ffffff;
+  color: #0f172a;
+  min-height: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
+  body,
+  #root {
+    color-scheme: light;
+    color-scheme: light only;
+    background-color: #ffffff;
+    color: #0f172a;
+  }
 }
 
 a {
@@ -41,7 +68,8 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #ffffff;
+  color: inherit;
   cursor: pointer;
   transition: border-color 0.25s;
 }
@@ -50,20 +78,7 @@ button:hover {
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  outline: none;
 }
 
 .super-admin-layout {

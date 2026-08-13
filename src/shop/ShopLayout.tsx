@@ -414,6 +414,13 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
             <div className="bp-topbar__actions">
               <button
                 type="button"
+                className="bp-btn bp-btn--secondary bp-btn--sm bp-topbar__walkin"
+                onClick={() => navigate("/shop/appointments?walkin=1")}
+              >
+                Walk-in
+              </button>
+              <button
+                type="button"
                 className="bp-btn bp-btn--primary bp-btn--sm bp-topbar__new-appt"
                 onClick={() => navigate("/shop/appointments")}
               >

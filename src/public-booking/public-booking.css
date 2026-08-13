@@ -19,8 +19,16 @@
   --pb-shadow-lg: 0 25px 50px -12px rgb(15 23 42 / 0.18);
   font-family: var(--pb-font);
   -webkit-font-smoothing: antialiased;
-  /* Keep form controls light on phones with system dark mode */
   color-scheme: light;
+  color-scheme: light only;
+  background-color: var(--pb-canvas);
+  color: var(--pb-ink);
+  min-height: 100vh;
+  forced-color-adjust: none;
+}
+
+.pb-root button {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pb-root *,
@@ -598,32 +606,43 @@
   padding: 0.75rem 0.5rem;
   border-radius: var(--pb-radius-sm);
   border: 1px solid var(--pb-line);
-  background: var(--pb-surface);
+  background: #ffffff;
+  background-color: #ffffff;
   font-size: 0.9375rem;
   font-weight: 600;
   font-family: inherit;
   font-variant-numeric: tabular-nums;
-  color: var(--pb-ink);
+  color: #0f172a;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.12s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   min-height: 3rem;
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.pb-slot-btn:hover {
-  border-color: var(--pb-accent);
-  background: #f0f9ff;
-}
-
+.pb-slot-btn:hover,
+.pb-slot-btn:active,
+.pb-slot-btn:focus,
 .pb-slot-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgb(14 165 233 / 0.3);
   border-color: var(--pb-accent);
+  background: #f0f9ff;
+  background-color: #f0f9ff;
+  color: #0f172a;
+  box-shadow: 0 0 0 3px rgb(14 165 233 / 0.3);
 }
 
-.pb-slot-btn--selected {
+.pb-slot-btn--selected,
+.pb-slot-btn--selected:hover,
+.pb-slot-btn--selected:active,
+.pb-slot-btn--selected:focus,
+.pb-slot-btn--selected:focus-visible {
   border-width: 2px;
   border-color: var(--pb-accent-deep);
-  background: linear-gradient(180deg, #e0f2fe 0%, #dbeafe 100%);
+  background: #e0f2fe;
+  background-color: #e0f2fe;
   color: #0c4a6e;
   font-weight: 800;
   box-shadow: 0 2px 10px rgb(14 165 233 / 0.2);

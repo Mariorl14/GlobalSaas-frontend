@@ -309,6 +309,9 @@ export function CalendarPage() {
           </p>
         </div>
         <div className="bp-page__actions">
+          <Link to="/shop/appointments?walkin=1" className="bp-btn bp-btn--secondary">
+            Walk-in
+          </Link>
           <Link to="/shop/appointments" className="bp-btn bp-btn--secondary">
             Lista de citas
           </Link>

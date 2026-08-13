@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
 import { rememberAppointmentIds } from "../appointmentAlerts";
@@ -140,6 +141,7 @@ function rangeForPeriod(
 }
 
 export function AppointmentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const user = session.getUser();
   const staffOnly = isShopStaff(user);
   const myEmployeeId = user?.employee_id ?? "";
@@ -251,6 +253,21 @@ export function AppointmentsPage() {
     });
     setErr(null);
   };
+
+  useEffect(() => {
+    if (searchParams.get("walkin") !== "1") return;
+    unlockShopAudio();
+    resetWalkIn();
+    setWalkInOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("walkin");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const submitWalkIn = async () => {
     setErr(null);
