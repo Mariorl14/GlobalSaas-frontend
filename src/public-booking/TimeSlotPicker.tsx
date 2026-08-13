@@ -36,9 +36,10 @@ export function TimeSlotPicker({
           <div
             key={`${s.start}-${i}`}
             className={selected ? "pb-slot-btn pb-slot-btn--selected" : "pb-slot-btn"}
+            translate="no"
             onClick={() => onChange(s.start)}
           >
-            {timeFromIso(s.start)}
+            <span translate="no">{timeFromIso(s.start)}</span>
           </div>
         );
       })}

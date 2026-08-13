@@ -1,13 +1,29 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 type Props = { children: ReactNode };
-type State = { error: Error | null };
+type State = { error: Error | null; remount: number };
+
+function isTranslateDomError(error: Error): boolean {
+  const m = `${error.name} ${error.message}`.toLowerCase();
+  return (
+    m.includes("removechild") ||
+    m.includes("insertbefore") ||
+    m.includes("not a child") ||
+    m.includes("no es hijo")
+  );
+}
+
+let recoveredTranslateError = false;
 
 /** Public booking has no shop shell — a render crash would otherwise be a blank page. */
 export class BookingErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, remount: 0 };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    if (isTranslateDomError(error) && !recoveredTranslateError) {
+      recoveredTranslateError = true;
+      return { error: null, remount: Date.now() };
+    }
     return { error };
   }
 
@@ -60,6 +76,6 @@ export class BookingErrorBoundary extends Component<Props, State> {
         </div>
       );
     }
-    return this.props.children;
+    return <div key={this.state.remount}>{this.props.children}</div>;
   }
 }
