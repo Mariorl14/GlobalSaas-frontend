@@ -33,20 +33,17 @@ type Appointment = {
 
 type SvcOpt = Opt & { duration?: number; price?: number };
 
-function naiveLocalIso(d = new Date()): string {
+function todayLocalDate(): string {
+  const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-function formatClock(d: Date): string {
-  return d.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
-}
+const WALK_IN_HOURS = Array.from({ length: 24 }, (_, h) => h);
 
-function walkInWindowLabel(durationMin?: number, d = new Date()): string {
-  const minutes = Math.max(1, Number(durationMin) || 30);
-  const end = d;
-  const start = new Date(end.getTime() - minutes * 60_000);
-  return `Hoy · ${formatClock(start)} – ${formatClock(end)} (${minutes} min)`;
+function walkInStartIso(date: string, hour: string): string {
+  const h = String(Number(hour)).padStart(2, "0");
+  return `${date}T${h}:00:00`;
 }
 
 type Opt = { id: string; name?: string; first_name?: string; last_name?: string; email?: string };
@@ -167,6 +164,8 @@ export function AppointmentsPage() {
     service_type_id: "",
     employee_id: "",
     payment_method: "",
+    served_date: todayLocalDate(),
+    served_hour: "",
   });
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [newClient, setNewClient] = useState({
@@ -250,6 +249,8 @@ export function AppointmentsPage() {
       service_type_id: "",
       employee_id: staffOnly ? myEmployeeId : "",
       payment_method: "",
+      served_date: todayLocalDate(),
+      served_hour: "",
     });
     setErr(null);
   };
@@ -288,10 +289,11 @@ export function AppointmentsPage() {
       setErr("Selecciona el método de pago.");
       return;
     }
-    const svc = services.find((s) => s.id === walkIn.service_type_id);
-    const completedAt = new Date();
-    const minutes = Math.max(1, Number(svc?.duration) || 30);
-    const startedAt = new Date(completedAt.getTime() - minutes * 60_000);
+    if (!walkIn.served_date || walkIn.served_hour === "") {
+      setErr("Selecciona el día y la hora atendida.");
+      return;
+    }
+    const startTime = walkInStartIso(walkIn.served_date, walkIn.served_hour);
     setSaving(true);
     try {
       const created = await axios.post<{ id: string }>(
@@ -303,9 +305,7 @@ export function AppointmentsPage() {
           service_type_id: walkIn.service_type_id,
           employee_id: assignedEmployeeId,
           payment_method: walkIn.payment_method,
-          completed_at: naiveLocalIso(completedAt),
-          start_time: naiveLocalIso(startedAt),
-          end_time: naiveLocalIso(completedAt),
+          start_time: startTime,
         },
       );
       if (created.data?.id) rememberAppointmentIds([created.data.id]);
@@ -765,7 +765,7 @@ export function AppointmentsPage() {
               <div>
                 <h2 className="bp-panel__title">Walk-in</h2>
                 <p className="bp-panel__subtitle">
-                  Completa la venta ahora. Fecha y hora se registran solas.
+                  Completa la venta. Indica el día y la hora en que se atendió al cliente.
                 </p>
               </div>
               <button
@@ -787,11 +787,36 @@ export function AppointmentsPage() {
                   <span>{err}</span>
                 </div>
               ) : null}
-              <p className="bp-hint" style={{ marginTop: 0 }}>
-                {walkInWindowLabel(
-                  services.find((s) => s.id === walkIn.service_type_id)?.duration,
-                )}
-              </p>
+              <div className="bp-field__row">
+                <div className="bp-field">
+                  <label className="bp-label">Día atendido</label>
+                  <input
+                    className="bp-input"
+                    type="date"
+                    value={walkIn.served_date}
+                    onChange={(e) => setWalkIn((f) => ({ ...f, served_date: e.target.value }))}
+                  />
+                </div>
+                <div className="bp-field">
+                  <label className="bp-label">Hora atendida</label>
+                  <select
+                    className="bp-select"
+                    value={walkIn.served_hour}
+                    onChange={(e) => setWalkIn((f) => ({ ...f, served_hour: e.target.value }))}
+                    aria-label="Hora atendida"
+                  >
+                    <option value="">Selecciona la hora</option>
+                    {WALK_IN_HOURS.map((h) => {
+                      const label = `${String(h).padStart(2, "0")}:00`;
+                      return (
+                        <option key={h} value={String(h)}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
               <div className="bp-field">
                 <label className="bp-label">Nombre</label>
                 <input
