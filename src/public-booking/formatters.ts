@@ -31,8 +31,10 @@ function pad2(n: number): string {
 export function timeFromIso(iso: string | null | undefined): string {
   if (!iso) return "--:--";
   const raw = String(iso);
-  const sep = raw.indexOf("T") >= 0 ? "T" : raw.indexOf(" ") >= 0 ? " " : -1;
-  const rest = sep >= 0 ? raw.slice(sep + 1) : raw;
+  const tPos = raw.indexOf("T");
+  const spPos = raw.indexOf(" ");
+  const cut = tPos >= 0 ? tPos : spPos;
+  const rest = cut >= 0 ? raw.slice(cut + 1) : raw;
   const hhmm = rest.slice(0, 5);
   return /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : "--:--";
 }
