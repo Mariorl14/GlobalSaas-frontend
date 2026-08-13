@@ -2257,10 +2257,33 @@
 .bp-cal-event:hover { transform: translateY(-1px); box-shadow: var(--bp-shadow-sm); }
 .bp-cal-event strong { font-size: 13px; font-weight: 650; }
 .bp-cal-event span { font-size: 11px; opacity: 0.85; }
-.bp-cal-event--scheduled { background: #eef2ff; color: #3730a3; border-left: 3px solid #6366f1; }
-.bp-cal-event--confirmed { background: #ecfdf5; color: #065f46; border-left: 3px solid #059669; }
-.bp-cal-event--completed { background: #f3f4f3; color: #374151; border-left: 3px solid #9ca3af; }
-.bp-cal-event--canceled { background: #fef2f2; color: #991b1b; border-left: 3px solid #f87171; }
+.bp-cal-event.is-canceled,
+.bp-cal-week__event.is-canceled {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.bp-cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+  align-items: center;
+}
+.bp-cal-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bp-text-secondary);
+}
+.bp-cal-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  display: inline-block;
+  flex-shrink: 0;
+}
 .bp-cal-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

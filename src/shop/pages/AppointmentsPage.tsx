@@ -490,8 +490,12 @@ export function AppointmentsPage() {
     try {
       await axios.delete(`${API_BASE_URL}/api/shop/appointments/${id}`);
       await load();
-    } catch {
-      setErr("No se pudo eliminar.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo eliminar.");
     }
   };
 

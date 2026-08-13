@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
@@ -11,6 +11,7 @@ import {
   IconPlus,
 } from "../icons";
 import { staffLabel } from "../staffLabel";
+import { staffSwatch } from "../staffColors";
 import { PaymentMethodField } from "../PaymentMethodField";
 import { isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
@@ -45,14 +46,6 @@ type ViewMode = "day" | "week";
 const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 20;
 const SLOT_MINUTES = 30;
-
-function statusClass(status: string): string {
-  const s = status.toLowerCase().replace("cancelled", "canceled");
-  if (s === "confirmed") return "bp-cal-event--confirmed";
-  if (s === "completed") return "bp-cal-event--completed";
-  if (s === "canceled" || s === "no_show") return "bp-cal-event--canceled";
-  return "bp-cal-event--scheduled";
-}
 
 function statusBadge(status: string): string {
   const s = status.toLowerCase();
@@ -197,10 +190,20 @@ export function CalendarPage() {
   }, [load]);
 
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? "Servicio";
+  const rosterIds = useMemo(() => staff.map((s) => s.employee_id), [staff]);
   const resolveStaffLabel = (id: string) => {
     const s = staff.find((x) => x.employee_id === id);
     if (!s) return "Staff";
     return staffLabel(s);
+  };
+  const eventStyle = (employeeId: string, extra?: CSSProperties): CSSProperties => {
+    const sw = staffSwatch(employeeId, rosterIds);
+    return {
+      background: sw.bg,
+      color: sw.fg,
+      borderLeft: `3px solid ${sw.accent}`,
+      ...extra,
+    };
   };
 
   const dayItems = useMemo(() => {
@@ -282,8 +285,12 @@ export function CalendarPage() {
       await axios.delete(`${API_BASE_URL}/api/shop/appointments/${id}`);
       setSelected(null);
       await load();
-    } catch {
-      setErr("No se pudo eliminar.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo eliminar.");
     }
   };
 
@@ -383,6 +390,22 @@ export function CalendarPage() {
         </div>
       </div>
 
+      {staff.length > 0 ? (
+        <div className="bp-cal-legend" aria-label="Colores por staff">
+          {staff
+            .filter((s) => !employeeId || s.employee_id === employeeId)
+            .map((s) => {
+              const sw = staffSwatch(s.employee_id, rosterIds);
+              return (
+                <span className="bp-cal-legend__item" key={s.employee_id}>
+                  <i className="bp-cal-legend__dot" style={{ background: sw.accent }} />
+                  {staffLabel(s)}
+                </span>
+              );
+            })}
+        </div>
+      ) : null}
+
       {loading && items.length === 0 ? (
         <div className="bp-card" style={{ minHeight: 320 }}>
           <div className="bp-empty">
@@ -434,8 +457,8 @@ export function CalendarPage() {
                 <button
                   type="button"
                   key={a.id}
-                  className={`bp-cal-event ${statusClass(a.status)}`}
-                  style={{ top, height }}
+                  className={`bp-cal-event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}`}
+                  style={eventStyle(a.employee_id, { top, height })}
                   onClick={() => setSelected(a)}
                   draggable
                   title="Arrastra próximamente · clic para abrir"
@@ -474,7 +497,8 @@ export function CalendarPage() {
                       <button
                         type="button"
                         key={a.id}
-                        className={`bp-cal-week__event ${statusClass(a.status)}`}
+                        className={`bp-cal-week__event${a.status === "canceled" || a.status === "cancelled" ? " is-canceled" : ""}`}
+                        style={eventStyle(a.employee_id)}
                         onClick={() => setSelected(a)}
                       >
                         <span>
