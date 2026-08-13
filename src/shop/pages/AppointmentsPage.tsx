@@ -15,6 +15,7 @@ import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
+import { moneyExact } from "../../money";
 
 type Appointment = {
   id: string;
@@ -26,7 +27,20 @@ type Appointment = {
   end_time: string | null;
   status: string;
   notes: string | null;
+  source?: string | null;
 };
+
+type SvcOpt = Opt & { duration?: number; price?: number };
+
+function naiveLocalIso(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function walkInClockLabel(d = new Date()): string {
+  const time = d.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+  return `Hoy · ${time}`;
+}
 
 type Opt = { id: string; name?: string; first_name?: string; last_name?: string; email?: string };
 
@@ -125,7 +139,7 @@ export function AppointmentsPage() {
   const myEmployeeId = user?.employee_id ?? "";
   const [items, setItems] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Opt[]>([]);
-  const [services, setServices] = useState<Opt[]>([]);
+  const [services, setServices] = useState<SvcOpt[]>([]);
   const [staff, setStaff] = useState<
     { employee_id: string; email: string | null; display_name: string | null; label?: string | null; full_name?: string | null; first_name?: string | null; last_name?: string | null }[]
   >([]);
@@ -137,6 +151,15 @@ export function AppointmentsPage() {
   const [statusF, setStatusF] = useState("");
   const [search, setSearch] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [walkInOpen, setWalkInOpen] = useState(false);
+  const [walkIn, setWalkIn] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    service_type_id: "",
+    employee_id: "",
+    payment_method: "",
+  });
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [newClient, setNewClient] = useState({
     first_name: "",
@@ -166,7 +189,7 @@ export function AppointmentsPage() {
   const loadRefs = useCallback(async () => {
     const [c, s, t] = await Promise.all([
       axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/clients`),
-      axios.get<{ items: Opt[] }>(`${API_BASE_URL}/api/shop/services`),
+      axios.get<{ items: SvcOpt[] }>(`${API_BASE_URL}/api/shop/services`),
       axios.get<{
         items: { employee_id: string; email: string | null; display_name: string | null }[];
       }>(`${API_BASE_URL}/api/shop/staff`),
@@ -210,6 +233,73 @@ export function AppointmentsPage() {
     if (period === "custom" && !customFrom && !customTo) return;
     void load();
   }, [load, period, customFrom, customTo]);
+
+  const resetWalkIn = () => {
+    setWalkIn({
+      name: "",
+      phone: "",
+      email: "",
+      service_type_id: "",
+      employee_id: staffOnly ? myEmployeeId : "",
+      payment_method: "",
+    });
+    setErr(null);
+  };
+
+  const submitWalkIn = async () => {
+    setErr(null);
+    const assignedEmployeeId = staffOnly ? myEmployeeId : walkIn.employee_id;
+    if (!walkIn.name.trim() || !walkIn.phone.trim()) {
+      setErr("Nombre y teléfono son obligatorios.");
+      return;
+    }
+    if (!walkIn.service_type_id || !assignedEmployeeId) {
+      setErr(
+        staffOnly
+          ? "Selecciona el servicio. (Re-inicia sesión si no se detecta tu perfil.)"
+          : "Selecciona servicio y barbero.",
+      );
+      return;
+    }
+    if (!walkIn.payment_method) {
+      setErr("Selecciona el método de pago.");
+      return;
+    }
+    const svc = services.find((s) => s.id === walkIn.service_type_id);
+    const start = new Date();
+    const minutes = Math.max(1, Number(svc?.duration) || 30);
+    const end = new Date(start.getTime() + minutes * 60_000);
+    setSaving(true);
+    try {
+      const created = await axios.post<{ id: string }>(
+        `${API_BASE_URL}/api/shop/appointments/walk-in`,
+        {
+          name: walkIn.name.trim(),
+          phone: walkIn.phone.trim(),
+          email: walkIn.email.trim() || undefined,
+          service_type_id: walkIn.service_type_id,
+          employee_id: assignedEmployeeId,
+          payment_method: walkIn.payment_method,
+          start_time: naiveLocalIso(start),
+          end_time: naiveLocalIso(end),
+        },
+      );
+      if (created.data?.id) rememberAppointmentIds([created.data.id]);
+      playAppointmentChime();
+      setWalkInOpen(false);
+      resetWalkIn();
+      await load();
+      await loadRefs();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : "No se pudo completar el walk-in.";
+      setErr(msg ?? "No se pudo completar el walk-in.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const resetPanel = () => {
     setForm({
@@ -429,6 +519,17 @@ export function AppointmentsPage() {
         <div className="bp-page__actions">
           <button
             type="button"
+            className="bp-btn bp-btn--secondary"
+            onClick={() => {
+              unlockShopAudio();
+              resetWalkIn();
+              setWalkInOpen(true);
+            }}
+          >
+            Walk-in
+          </button>
+          <button
+            type="button"
             className="bp-btn bp-btn--primary"
             onClick={() => {
               unlockShopAudio();
@@ -442,7 +543,7 @@ export function AppointmentsPage() {
         </div>
       </div>
 
-      {err && !panelOpen ? (
+      {err && !panelOpen && !walkInOpen ? (
         <div className="bp-alert bp-alert--error" style={{ marginBottom: 16 }}>
           <IconAlert />
           <span>{err}</span>
@@ -529,6 +630,16 @@ export function AppointmentsPage() {
                 ? "Tu agenda de los próximos 7 días está libre. Crea una cita o revisa todo el historial."
                 : "Ajusta el periodo o crea una nueva cita para comenzar."}
             </div>
+            <button
+              type="button"
+              className="bp-btn bp-btn--secondary bp-btn--sm"
+              onClick={() => {
+                resetWalkIn();
+                setWalkInOpen(true);
+              }}
+            >
+              Walk-in
+            </button>
             <button type="button" className="bp-btn bp-btn--primary bp-btn--sm" onClick={() => { resetPanel(); setPanelOpen(true); }}>
               <IconPlus />
               Nueva cita
@@ -580,6 +691,9 @@ export function AppointmentsPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {a.source === "walk_in" ? (
+                        <span className="bp-badge bp-badge--info">Walk-in</span>
+                      ) : null}
                       <span className={`bp-badge ${statusClass(a.status)}`}>
                         <span className="bp-badge__dot" />
                         {statusLabel(a.status)}
@@ -612,6 +726,150 @@ export function AppointmentsPage() {
           ))}
         </div>
       )}
+
+      {walkInOpen ? (
+        <>
+          <div
+            className="bp-panel__overlay"
+            onClick={() => {
+              setWalkInOpen(false);
+              resetWalkIn();
+            }}
+          />
+          <div className="bp-panel" role="dialog" aria-modal="true">
+            <div className="bp-panel__header">
+              <div>
+                <h2 className="bp-panel__title">Walk-in</h2>
+                <p className="bp-panel__subtitle">
+                  Completa la venta ahora. Fecha y hora se registran solas.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="bp-icon-btn"
+                onClick={() => {
+                  setWalkInOpen(false);
+                  resetWalkIn();
+                }}
+                aria-label="Cerrar"
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="bp-panel__body">
+              {err ? (
+                <div className="bp-alert bp-alert--error">
+                  <IconAlert />
+                  <span>{err}</span>
+                </div>
+              ) : null}
+              <p className="bp-hint" style={{ marginTop: 0 }}>
+                {walkInClockLabel()}
+              </p>
+              <div className="bp-field">
+                <label className="bp-label">Nombre</label>
+                <input
+                  className="bp-input"
+                  autoFocus
+                  placeholder="Carlos"
+                  value={walkIn.name}
+                  onChange={(e) => setWalkIn((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="bp-field">
+                <label className="bp-label">Teléfono</label>
+                <input
+                  className="bp-input"
+                  inputMode="tel"
+                  placeholder="8888-8888"
+                  value={walkIn.phone}
+                  onChange={(e) => setWalkIn((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div className="bp-field">
+                <label className="bp-label">Email (opcional)</label>
+                <input
+                  className="bp-input"
+                  type="email"
+                  placeholder="Opcional"
+                  value={walkIn.email}
+                  onChange={(e) => setWalkIn((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="bp-field">
+                <label className="bp-label">Servicio</label>
+                <select
+                  className="bp-select"
+                  value={walkIn.service_type_id}
+                  onChange={(e) => setWalkIn((f) => ({ ...f, service_type_id: e.target.value }))}
+                >
+                  <option value="">Selecciona un servicio</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.price != null ? ` · ${moneyExact(s.price)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="bp-field">
+                <label className="bp-label">Barbero / staff</label>
+                {staffOnly ? (
+                  <p className="bp-hint" style={{ margin: 0 }}>
+                    Se registra a tu nombre.
+                  </p>
+                ) : (
+                  <select
+                    className="bp-select"
+                    value={walkIn.employee_id}
+                    onChange={(e) => setWalkIn((f) => ({ ...f, employee_id: e.target.value }))}
+                  >
+                    <option value="">Selecciona staff</option>
+                    {staff.map((s) => (
+                      <option key={s.employee_id} value={s.employee_id}>
+                        {staffLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <PaymentMethodField
+                value={walkIn.payment_method}
+                onChange={(v) => setWalkIn((f) => ({ ...f, payment_method: v }))}
+              />
+              {walkIn.service_type_id ? (
+                <p className="bp-hint">
+                  Precio del servicio:{" "}
+                  {moneyExact(
+                    Number(services.find((s) => s.id === walkIn.service_type_id)?.price ?? 0),
+                  )}
+                </p>
+              ) : null}
+            </div>
+            <div className="bp-panel__footer">
+              <button
+                type="button"
+                className="bp-btn bp-btn--secondary"
+                onClick={() => {
+                  setWalkInOpen(false);
+                  resetWalkIn();
+                }}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="bp-btn bp-btn--primary"
+                onClick={() => void submitWalkIn()}
+                disabled={saving}
+              >
+                {saving ? "Completando…" : "Completar walk-in"}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       {panelOpen ? (
         <>
