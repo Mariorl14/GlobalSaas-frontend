@@ -1,3 +1,5 @@
+import { isoDate, monthTitleEs } from "./formatters";
+
 const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export function BookingCalendar({
@@ -24,7 +26,8 @@ export function BookingCalendar({
   const first = new Date(year, month - 1, 1);
   const startPad = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month, 0).getDate();
-  const cells: (number | null)[] = [...Array(startPad).fill(null)];
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < startPad; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
@@ -38,9 +41,7 @@ export function BookingCalendar({
         >
           ←
         </button>
-        <span className="pb-cal-title">
-          {first.toLocaleString("es", { month: "long", year: "numeric" })}
-        </span>
+        <span className="pb-cal-title">{monthTitleEs(year, month)}</span>
         <button
           type="button"
           className="pb-cal-nav"
@@ -62,7 +63,7 @@ export function BookingCalendar({
           if (d === null) {
             return <div key={`e-${i}`} />;
           }
-          const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const iso = isoDate(year, month, d);
           const isPast = iso < minDate;
           const has = dayHints[iso];
           const isSel = selectedDate === iso;
@@ -81,7 +82,6 @@ export function BookingCalendar({
               type="button"
               disabled={isPast}
               className={cls}
-              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onSelectDate(iso)}
               aria-label={`Elegir ${iso}`}
               aria-pressed={isSel}

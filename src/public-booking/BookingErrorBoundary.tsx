@@ -33,6 +33,23 @@ export class BookingErrorBoundary extends Component<Props, State> {
           <p style={{ margin: "0 0 1rem", color: "#475569" }}>
             Recarga la página e inténtalo de nuevo.
           </p>
+          {this.state.error?.message ? (
+            <pre
+              style={{
+                margin: "0 0 1rem",
+                padding: "0.75rem",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                color: "#334155",
+                fontSize: 12,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {this.state.error.message}
+            </pre>
+          ) : null}
           <button
             type="button"
             className="pb-btn pb-btn-primary"

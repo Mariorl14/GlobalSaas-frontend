@@ -1,6 +1,7 @@
 import type { PublicBusiness, PublicService, PublicBarber, Slot } from "./bookingApi";
 import type { CustomerFormValues } from "./CustomerBookingForm";
 import { moneyExact } from "../money";
+import { dateLineEs, timeFromIso } from "./formatters";
 
 export function BookingSummary({
   business,
@@ -21,23 +22,8 @@ export function BookingSummary({
   onBack: () => void;
   submitting: boolean;
 }) {
-  const dateLine = slot
-    ? new Date(slot.start).toLocaleDateString("es", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "—";
-  const timeLine = slot
-    ? `${new Date(slot.start).toLocaleTimeString("es", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })} – ${new Date(slot.end).toLocaleTimeString("es", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`
-    : "—";
+  const dateLine = slot ? dateLineEs(slot.start) : "—";
+  const timeLine = slot ? `${timeFromIso(slot.start)} – ${timeFromIso(slot.end)}` : "—";
 
   return (
     <div className="pb-summary">

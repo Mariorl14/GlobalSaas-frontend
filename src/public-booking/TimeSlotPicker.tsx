@@ -1,12 +1,5 @@
 import type { Slot } from "./bookingApi";
-
-function formatSlotLabel(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "--:--";
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
-}
+import { timeFromIso } from "./formatters";
 
 export function TimeSlotPicker({
   slots,
@@ -21,13 +14,13 @@ export function TimeSlotPicker({
 }) {
   if (loading) {
     return (
-      <div className="pb-slots-loading" role="status" aria-live="polite">
+      <div className="pb-slots-loading">
         <span className="pb-spinner" aria-hidden />
         Buscando horarios disponibles…
       </div>
     );
   }
-  if (slots.length === 0) {
+  if (!slots || slots.length === 0) {
     return (
       <p className="pb-slots-empty">
         No hay horarios libres este día. Prueba otra fecha o cambia de profesional.
@@ -35,21 +28,18 @@ export function TimeSlotPicker({
     );
   }
   return (
-    <div className="pb-slot-grid" role="listbox" aria-label="Horarios disponibles">
-      {slots.map((s) => {
-        const sel = value === s.start;
+    <div className="pb-slot-grid">
+      {slots.map((s, i) => {
+        if (!s || !s.start) return null;
+        const selected = value === s.start;
         return (
-          <button
-            key={s.start}
-            type="button"
-            role="option"
-            aria-selected={sel}
-            className={`pb-slot-btn${sel ? " pb-slot-btn--selected" : ""}`}
-            onMouseDown={(e) => e.preventDefault()}
+          <div
+            key={`${s.start}-${i}`}
+            className={selected ? "pb-slot-btn pb-slot-btn--selected" : "pb-slot-btn"}
             onClick={() => onChange(s.start)}
           >
-            {formatSlotLabel(s.start)}
-          </button>
+            {timeFromIso(s.start)}
+          </div>
         );
       })}
     </div>
