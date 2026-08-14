@@ -69,13 +69,19 @@ export function BookingSummary({
           <div className="pb-summary-value">
             {customer.first_name} {customer.last_name}
             <div className="pb-summary-value--muted" style={{ marginTop: "0.35rem" }}>
-              {customer.phone}
-              {customer.email ? (
+              {customer.phone || customer.email ? (
                 <>
-                  <br />
-                  {customer.email}
+                  {customer.phone || "Sin teléfono"}
+                  {customer.email ? (
+                    <>
+                      <br />
+                      {customer.email}
+                    </>
+                  ) : null}
                 </>
-              ) : null}
+              ) : (
+                "Sin teléfono ni correo"
+              )}
             </div>
           </div>
         </div>

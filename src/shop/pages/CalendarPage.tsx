@@ -27,7 +27,7 @@ type Appointment = {
   employee_id: string;
   client_name: string;
   client_email: string;
-  client_phone: string;
+  client_phone: string | null;
   start_time: string | null;
   end_time: string | null;
   status: string;

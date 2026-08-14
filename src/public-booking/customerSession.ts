@@ -2,7 +2,7 @@ export type PublicClient = {
   id: string;
   first_name: string;
   last_name: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   username: string | null;
   has_account: boolean;

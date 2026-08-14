@@ -68,8 +68,8 @@ export function CustomerAccountPanel({
 
   const handleRegister = async () => {
     setErr(null);
-    if (!customer.first_name.trim() || !customer.last_name.trim() || !customer.phone.trim()) {
-      setErr("Completa nombre, apellido y teléfono antes de crear la cuenta.");
+    if (!customer.first_name.trim() || !customer.last_name.trim()) {
+      setErr("Completa nombre y apellido antes de crear la cuenta.");
       return;
     }
     setBusy(true);
@@ -79,7 +79,7 @@ export function CustomerAccountPanel({
         password,
         first_name: customer.first_name.trim(),
         last_name: customer.last_name.trim(),
-        phone: customer.phone.trim(),
+        phone: customer.phone.trim() || undefined,
         email: customer.email.trim() || undefined,
       });
       applyClientToForm(res.client);

@@ -209,7 +209,7 @@ export function PublicBarberBookingPage() {
         end_time: selectedSlot.end,
         first_name: customer.first_name.trim(),
         last_name: customer.last_name.trim(),
-        phone: customer.phone.trim(),
+        phone: customer.phone.trim() || undefined,
         email: customer.email.trim() || undefined,
         notes: customer.notes.trim() || undefined,
       });

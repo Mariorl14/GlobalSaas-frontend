@@ -16,8 +16,8 @@ export function CustomerBookingForm({
   return (
     <div>
       <p className="pb-field-hint" style={{ marginBottom: "1.25rem", maxWidth: "none" }}>
-        Tus datos solo se usan para esta reserva y la gestión de tu cita en la barbería. Teléfono: mínimo 6
-        caracteres; el email es opcional pero debe ser válido si lo indicas.
+        Tus datos solo se usan para esta reserva y la gestión de tu cita en la barbería. Teléfono y email son
+        opcionales; si los indicas, el teléfono debe tener al menos 6 caracteres y el email debe ser válido.
       </p>
       <div className="pb-form-grid-2">
         <div className="pb-field-block">
@@ -51,7 +51,7 @@ export function CustomerBookingForm({
       </div>
       <div className="pb-field-block" style={{ marginTop: "1rem" }}>
         <label className="pb-field-label" htmlFor="pb-phone">
-          Teléfono
+          Teléfono <span style={{ fontWeight: 500, color: "#94a3b8" }}>(opcional)</span>
         </label>
         <input
           id="pb-phone"

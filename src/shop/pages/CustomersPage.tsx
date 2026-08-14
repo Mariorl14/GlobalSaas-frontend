@@ -10,7 +10,7 @@ type Client = {
   id: string;
   first_name: string;
   last_name: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   notes: string | null;
   preferred_employee_id: string | null;
@@ -62,7 +62,7 @@ export function CustomersPage() {
     setForm({
       first_name: c.first_name,
       last_name: c.last_name,
-      phone: c.phone,
+      phone: c.phone ?? "",
       email: c.email ?? "",
       notes: c.notes ?? "",
     });
@@ -113,7 +113,7 @@ export function CustomersPage() {
       await axios.put(`${API_BASE_URL}/api/shop/clients/${sel.id}`, {
         first_name: form.first_name,
         last_name: form.last_name,
-        phone: form.phone,
+        phone: form.phone.trim() || null,
         email: form.email || null,
         notes: form.notes || null,
       });
@@ -129,7 +129,7 @@ export function CustomersPage() {
       await axios.post(`${API_BASE_URL}/api/shop/clients`, {
         first_name: form.first_name,
         last_name: form.last_name,
-        phone: form.phone,
+        phone: form.phone.trim() || null,
         email: form.email || null,
         notes: form.notes || null,
       });
@@ -238,7 +238,7 @@ export function CustomersPage() {
                         </div>
                       </div>
                     </td>
-                    <td>{c.phone}</td>
+                    <td>{c.phone || "—"}</td>
                     <td className="bp-cell-muted">{c.email ?? "—"}</td>
                     <td>
                       <div className="bp-cell-actions">
@@ -316,7 +316,7 @@ export function CustomersPage() {
                 </div>
               </div>
               <div className="bp-field">
-                <label className="bp-label">Teléfono</label>
+                <label className="bp-label">Teléfono (opcional)</label>
                 <input
                   className="bp-input"
                   value={form.phone}
@@ -324,7 +324,7 @@ export function CustomersPage() {
                 />
               </div>
               <div className="bp-field">
-                <label className="bp-label">Email</label>
+                <label className="bp-label">Email (opcional)</label>
                 <input
                   className="bp-input"
                   value={form.email}

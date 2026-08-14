@@ -89,7 +89,7 @@ export async function customerRegister(
     password: string;
     first_name: string;
     last_name: string;
-    phone: string;
+    phone?: string;
     email?: string;
   },
 ) {
@@ -133,7 +133,7 @@ export async function submitPublicBooking(
     end_time: string;
     first_name: string;
     last_name: string;
-    phone: string;
+    phone?: string;
     email?: string;
     notes?: string;
   },

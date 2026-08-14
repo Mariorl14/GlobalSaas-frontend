@@ -14,7 +14,7 @@ export function isPublicCustomerStepValid(c: CustomerFormValues): boolean {
   if (!first || !last || first.length > NAME_MAX_LEN || last.length > NAME_MAX_LEN) {
     return false;
   }
-  if (phone.length < PHONE_MIN_LEN || phone.length > PHONE_MAX_LEN) {
+  if (phone.length > 0 && (phone.length < PHONE_MIN_LEN || phone.length > PHONE_MAX_LEN)) {
     return false;
   }
   if (email.length > 0 && (email.length > 120 || !EMAIL_RE.test(email))) {

@@ -283,8 +283,8 @@ export function AppointmentsPage() {
   const submitWalkIn = async () => {
     setErr(null);
     const assignedEmployeeId = staffOnly ? myEmployeeId : walkIn.employee_id;
-    if (!walkIn.name.trim() || !walkIn.phone.trim()) {
-      setErr("Nombre y teléfono son obligatorios.");
+    if (!walkIn.name.trim()) {
+      setErr("El nombre es obligatorio.");
       return;
     }
     if (!walkIn.service_type_id || !assignedEmployeeId) {
@@ -367,6 +367,16 @@ export function AppointmentsPage() {
       return;
     }
 
+    if (clientMode === "new") {
+      if (!newClient.first_name.trim()) {
+        setErr("Para un cliente nuevo indica al menos el nombre.");
+        return;
+      }
+    } else if (!form.client_id) {
+      setErr("Selecciona un cliente o crea uno nuevo.");
+      return;
+    }
+
     setSaving(true);
     try {
       let clientId = form.client_id;
@@ -375,21 +385,14 @@ export function AppointmentsPage() {
         const ln = newClient.last_name.trim() || "—";
         const phone = newClient.phone.trim();
         const email = newClient.email.trim();
-        if (!fn || !phone) {
-          setErr("Para un cliente nuevo indica al menos nombre y teléfono.");
-          return;
-        }
         const created = await axios.post<{ id: string }>(`${API_BASE_URL}/api/shop/clients`, {
           first_name: fn,
           last_name: ln,
-          phone,
+          ...(phone ? { phone } : {}),
           ...(email ? { email } : {}),
         });
         clientId = created.data.id;
         await loadRefs();
-      } else if (!clientId) {
-        setErr("Selecciona un cliente o crea uno nuevo.");
-        return;
       }
 
       const createdAppt = await axios.post<{ id: string }>(
@@ -864,11 +867,11 @@ export function AppointmentsPage() {
                 />
               </div>
               <div className="bp-field">
-                <label className="bp-label">Teléfono</label>
+                <label className="bp-label">Teléfono (opcional)</label>
                 <input
                   className="bp-input"
                   inputMode="tel"
-                  placeholder="8888-8888"
+                  placeholder="Opcional"
                   value={walkIn.phone}
                   onChange={(e) => setWalkIn((f) => ({ ...f, phone: e.target.value }))}
                 />
@@ -1055,10 +1058,10 @@ export function AppointmentsPage() {
                     />
                   </div>
                   <div className="bp-field" style={{ gridColumn: "1 / -1" }}>
-                    <label className="bp-label">Teléfono</label>
+                    <label className="bp-label">Teléfono (opcional)</label>
                     <input
                       className="bp-input"
-                      placeholder="Para contactar / WhatsApp"
+                      placeholder="Opcional — para contactar / WhatsApp"
                       value={newClient.phone}
                       onChange={(e) =>
                         setNewClient((c) => ({ ...c, phone: e.target.value }))
