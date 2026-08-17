@@ -21,6 +21,9 @@ import {
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
 import { moneyExact } from "../../money";
+import { timeFromIso } from "../../public-booking/formatters";
+import { TimeSelect12h } from "../TimeSelect12h";
+import { DateTimeLocalFields } from "../DateTimeLocalFields";
 
 type Appointment = {
   id: string;
@@ -44,11 +47,8 @@ function todayLocalDate(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-const WALK_IN_HOURS = Array.from({ length: 24 }, (_, h) => h);
-
-function walkInStartIso(date: string, hour: string): string {
-  const h = String(Number(hour)).padStart(2, "0");
-  return `${date}T${h}:00:00`;
+function walkInStartIso(date: string, timeHhmm: string): string {
+  return `${date}T${timeHhmm}:00`;
 }
 
 type Opt = { id: string; name?: string; first_name?: string; last_name?: string; email?: string };
@@ -171,7 +171,7 @@ export function AppointmentsPage() {
     employee_id: "",
     payment_method: "",
     served_date: todayLocalDate(),
-    served_hour: "",
+    served_time: "",
   });
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [newClient, setNewClient] = useState({
@@ -260,7 +260,7 @@ export function AppointmentsPage() {
       employee_id: staffOnly ? myEmployeeId : "",
       payment_method: "",
       served_date: todayLocalDate(),
-      served_hour: "",
+      served_time: "",
     });
     setErr(null);
   };
@@ -299,11 +299,11 @@ export function AppointmentsPage() {
       setErr("Selecciona el método de pago.");
       return;
     }
-    if (!walkIn.served_date || walkIn.served_hour === "") {
+    if (!walkIn.served_date || !walkIn.served_time) {
       setErr("Selecciona el día y la hora atendida.");
       return;
     }
-    const startTime = walkInStartIso(walkIn.served_date, walkIn.served_hour);
+    const startTime = walkInStartIso(walkIn.served_date, walkIn.served_time);
     setSaving(true);
     try {
       const created = await axios.post<{ id: string }>(
@@ -719,18 +719,8 @@ export function AppointmentsPage() {
                       <div className="bp-avatar">{initials(a.client_name)}</div>
                       <div style={{ minWidth: 0 }}>
                         <div className="bp-appt-card__time">
-                          {a.start_time
-                            ? new Date(a.start_time).toLocaleTimeString("es-MX", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "—"}
-                          {a.end_time
-                            ? ` – ${new Date(a.end_time).toLocaleTimeString("es-MX", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}`
-                            : ""}
+                          {a.start_time ? timeFromIso(a.start_time) : "—"}
+                          {a.end_time ? ` – ${timeFromIso(a.end_time)}` : ""}
                         </div>
                         <div className="bp-appt-card__client">{a.client_name}</div>
                         <div className="bp-appt-card__meta">
@@ -838,22 +828,11 @@ export function AppointmentsPage() {
                 </div>
                 <div className="bp-field">
                   <label className="bp-label">Hora atendida</label>
-                  <select
-                    className="bp-select"
-                    value={walkIn.served_hour}
-                    onChange={(e) => setWalkIn((f) => ({ ...f, served_hour: e.target.value }))}
+                  <TimeSelect12h
+                    value={walkIn.served_time}
+                    onChange={(served_time) => setWalkIn((f) => ({ ...f, served_time }))}
                     aria-label="Hora atendida"
-                  >
-                    <option value="">Selecciona la hora</option>
-                    {WALK_IN_HOURS.map((h) => {
-                      const label = `${String(h).padStart(2, "0")}:00`;
-                      return (
-                        <option key={h} value={String(h)}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  />
                 </div>
               </div>
               <div className="bp-field">
@@ -1118,26 +1097,22 @@ export function AppointmentsPage() {
                   </select>
                 )}
               </div>
-              <div className="bp-field__row">
-                <div className="bp-field">
-                  <label className="bp-label">Inicio</label>
-                  <input
-                    className="bp-input"
-                    type="datetime-local"
-                    value={form.start}
-                    onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))}
-                  />
-                </div>
-                <div className="bp-field">
-                  <label className="bp-label">Fin</label>
-                  <input
-                    className="bp-input"
-                    type="datetime-local"
-                    value={form.end}
-                    onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))}
-                  />
-                </div>
-              </div>
+              <DateTimeLocalFields
+                dateId="appt-start-date"
+                timeId="appt-start-time"
+                dateLabel="Inicio · fecha"
+                timeLabel="Inicio · hora"
+                value={form.start}
+                onChange={(start) => setForm((f) => ({ ...f, start }))}
+              />
+              <DateTimeLocalFields
+                dateId="appt-end-date"
+                timeId="appt-end-time"
+                dateLabel="Fin · fecha"
+                timeLabel="Fin · hora"
+                value={form.end}
+                onChange={(end) => setForm((f) => ({ ...f, end }))}
+              />
               <div className="bp-field">
                 <label className="bp-label">Estado inicial</label>
                 <select

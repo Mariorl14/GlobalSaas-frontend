@@ -19,6 +19,8 @@ import {
 } from "../AppointmentActionDialogs";
 import { isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
+import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
+import { DateTimeLocalFields } from "../DateTimeLocalFields";
 
 type Appointment = {
   id: string;
@@ -106,7 +108,7 @@ function slots(): { label: string; minutes: number }[] {
     const h = Math.floor(m / 60);
     const mm = m % 60;
     out.push({
-      label: `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`,
+      label: formatClock12h(h, mm),
       minutes: m,
     });
   }
@@ -512,12 +514,7 @@ export function CalendarPage() {
                         onClick={() => setSelected(a)}
                       >
                         <span>
-                          {a.start_time
-                            ? new Date(a.start_time).toLocaleTimeString("es-MX", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : ""}
+                          {a.start_time ? timeFromIso(a.start_time) : ""}
                         </span>
                         <strong>{a.client_name}</strong>
                         <em>
@@ -560,13 +557,7 @@ export function CalendarPage() {
                   <div style={{ marginTop: 8, fontSize: 13, color: "var(--bp-text-muted, #64748b)" }}>
                     Esperando confirmación del cliente
                     {selected.proposed_start_time
-                      ? ` · propuesto: ${new Date(selected.proposed_start_time).toLocaleString("es-MX", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}`
+                      ? ` · propuesto: ${dateTimeShortFromIso(selected.proposed_start_time)}`
                       : ""}
                   </div>
                 ) : null}
@@ -583,34 +574,30 @@ export function CalendarPage() {
                 <label className="bp-label">Barbero</label>
                 <div>{resolveStaffLabel(selected.employee_id)}</div>
               </div>
-              <div className="bp-field__row">
-                <div className="bp-field">
-                  <label className="bp-label">Inicio</label>
-                  <input
-                    className="bp-input"
-                    type="datetime-local"
-                    value={toLocalInput(selected.start_time)}
-                    onChange={(e) =>
-                      setSelected((s) =>
-                        s ? { ...s, start_time: new Date(e.target.value).toISOString() } : s,
-                      )
-                    }
-                  />
-                </div>
-                <div className="bp-field">
-                  <label className="bp-label">Fin</label>
-                  <input
-                    className="bp-input"
-                    type="datetime-local"
-                    value={toLocalInput(selected.end_time)}
-                    onChange={(e) =>
-                      setSelected((s) =>
-                        s ? { ...s, end_time: new Date(e.target.value).toISOString() } : s,
-                      )
-                    }
-                  />
-                </div>
-              </div>
+              <DateTimeLocalFields
+                dateId="cal-start-date"
+                timeId="cal-start-time"
+                dateLabel="Inicio · fecha"
+                timeLabel="Inicio · hora"
+                value={toLocalInput(selected.start_time)}
+                onChange={(v) =>
+                  setSelected((s) =>
+                    s ? { ...s, start_time: v ? new Date(v).toISOString() : s.start_time } : s,
+                  )
+                }
+              />
+              <DateTimeLocalFields
+                dateId="cal-end-date"
+                timeId="cal-end-time"
+                dateLabel="Fin · fecha"
+                timeLabel="Fin · hora"
+                value={toLocalInput(selected.end_time)}
+                onChange={(v) =>
+                  setSelected((s) =>
+                    s ? { ...s, end_time: v ? new Date(v).toISOString() : s.end_time } : s,
+                  )
+                }
+              />
               <div className="bp-field">
                 <label className="bp-label">Notas</label>
                 <textarea

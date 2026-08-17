@@ -5,6 +5,7 @@ import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
 import { IconPlus, IconClose, IconSearch, IconUsers, IconAlert, IconEdit } from "../icons";
 import { moneyExact } from "../../money";
+import { dateTimeShortFromIso } from "../../public-booking/formatters";
 
 type Client = {
   id: string;
@@ -357,9 +358,7 @@ export function CustomersPage() {
                           <div className="bp-timeline__dot" />
                           <div>
                             <div className="bp-timeline__title">
-                              {h.start_time
-                                ? new Date(h.start_time).toLocaleString("es-MX")
-                                : "—"}
+                              {h.start_time ? dateTimeShortFromIso(h.start_time) : "—"}
                             </div>
                             <div className="bp-timeline__meta">{h.status}</div>
                           </div>

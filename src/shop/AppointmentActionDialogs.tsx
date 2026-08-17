@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../config";
 import { IconClose } from "./icons";
-import { dateLineEs, timeFromIso } from "../public-booking/formatters";
+import { dateLineEs, normalizeBookingHhmm, timeFromIso } from "../public-booking/formatters";
+import { TimeSelect12h } from "./TimeSelect12h";
 
 export type LifecycleAppointment = {
   id: string;
@@ -34,11 +35,14 @@ function splitLocal(iso: string | null): { date: string; time: string } {
     const pad = (v: number) => String(v).padStart(2, "0");
     return {
       date: `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`,
-      time: `${pad(n.getHours())}:${pad(n.getMinutes())}`,
+      time: normalizeBookingHhmm(`${pad(n.getHours())}:${pad(n.getMinutes())}`) || "09:00",
     };
   }
   const raw = String(iso).replace(" ", "T");
-  return { date: raw.slice(0, 10), time: raw.slice(11, 16) || "09:00" };
+  return {
+    date: raw.slice(0, 10),
+    time: normalizeBookingHhmm(raw.slice(11, 16) || "09:00") || "09:00",
+  };
 }
 
 function naiveIso(date: string, time: string): string {
@@ -157,12 +161,11 @@ export function AppointmentRescheduleDialog({
               <label className="bp-label" htmlFor="rs-time">
                 Nueva hora
               </label>
-              <input
+              <TimeSelect12h
                 id="rs-time"
-                className="bp-input"
-                type="time"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={setTime}
+                aria-label="Nueva hora"
               />
             </div>
           </div>

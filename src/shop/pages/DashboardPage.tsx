@@ -25,6 +25,7 @@ import {
   IconTeam,
 } from "../icons";
 import { money, moneyExact } from "../../money";
+import { dateTimeShortFromIso } from "../../public-booking/formatters";
 
 type RangeKey =
   | "today"
@@ -36,7 +37,7 @@ type RangeKey =
   | "custom";
 
 type InsightsPayload = {
-  period: { range: string; from: string; to: string };
+  period: { range: string; from: string; to: string; timezone?: string };
   meta: { currency_note: string; unavailable: string[]; generated_at: string };
   snapshot: {
     revenue: number;
@@ -495,6 +496,12 @@ export function DashboardPage() {
           </div>
         ) : null}
       </div>
+      {data.period?.from && data.period?.to ? (
+        <p className="bp-meta-note" style={{ marginTop: -4, marginBottom: 12 }}>
+          Periodo: {String(data.period.from).slice(0, 10)} → {String(data.period.to).slice(0, 10)}
+          {data.period.timezone ? ` · ${data.period.timezone}` : ""}
+        </p>
+      ) : null}
 
       {data.empty ? (
         <div className="bp-card">
@@ -1186,15 +1193,7 @@ export function DashboardPage() {
                     <div className="bp-appt-card__rail bp-appt-card__rail--scheduled" />
                     <div>
                       <div className="bp-appt-card__time">
-                        {a.start_time
-                          ? new Date(a.start_time).toLocaleString("es-MX", {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
+                        {a.start_time ? dateTimeShortFromIso(a.start_time) : "—"}
                       </div>
                       <div className="bp-appt-card__client">{a.client_name}</div>
                       {a.service_name ? (
