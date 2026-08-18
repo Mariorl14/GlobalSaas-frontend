@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
+import { publicBookingUrl } from "../config";
 import "./BookingQrCard.css";
 
 type Props = {
@@ -10,9 +11,7 @@ type Props = {
 };
 
 export function bookingPageUrl(slug: string): string {
-  const clean = (slug || "").trim();
-  if (typeof window === "undefined") return `/book/${clean}`;
-  return `${window.location.origin}/book/${clean}`;
+  return publicBookingUrl(slug);
 }
 
 /**

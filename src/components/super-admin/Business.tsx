@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { mediaUrl } from "../../mediaUrl";
-import { API_BASE_URL } from "../../config";
+import { API_BASE_URL, publicBookingUrl as canonicalBookingUrl } from "../../config";
 import { BookingQrCard } from "../../shop/BookingQrCard";
 import { formatMoney, moneyExact } from "../../money";
 import {
@@ -359,10 +359,7 @@ export const Business: React.FC = () => {
     [items.length, load, page, resetForm],
   );
 
-  const publicBookingUrl = useCallback((slug: string) => {
-    if (typeof window === "undefined") return `/book/${slug}`;
-    return `${window.location.origin}/book/${slug}`;
-  }, []);
+  const publicBookingUrl = useCallback((slug: string) => canonicalBookingUrl(slug), []);
 
   const copyBookingLink = useCallback(
     async (slug: string) => {
