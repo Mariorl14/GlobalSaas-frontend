@@ -1,15 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { AuthView } from "./components/auth/AuthView.tsx";
 import { Menu } from "./components/super-admin/Menu.tsx";
 import type { MenuItem } from "./components/super-admin/Menu.tsx";
 import { session } from "./auth/session";
 import { isShopUser, isSuperAdmin } from "./auth/roles";
-import { Business } from "./components/super-admin/Business.tsx";
-import { Plans } from "./components/super-admin/Plans.tsx";
-import { Users } from "./components/super-admin/Users.tsx";
-import { Dashboard } from "./components/super-admin/Dashboard.tsx";
 import {
   IconSearch,
   IconBell,
@@ -21,21 +16,72 @@ import {
   IconSettings,
 } from "./components/super-admin/icons.tsx";
 import "./components/super-admin/super-admin.css";
-import { ShopLayout } from "./shop/ShopLayout.tsx";
-import { ShopLoginView } from "./shop/ShopLoginView.tsx";
-import { DashboardPage } from "./shop/pages/DashboardPage.tsx";
-import { CalendarPage } from "./shop/pages/CalendarPage.tsx";
-import { AppointmentsPage } from "./shop/pages/AppointmentsPage.tsx";
-import { CustomersPage } from "./shop/pages/CustomersPage.tsx";
-import { ServicesPage } from "./shop/pages/ServicesPage.tsx";
-import { InventoryPage } from "./shop/pages/InventoryPage.tsx";
-import { SalesPage } from "./shop/pages/SalesPage.tsx";
-import { StaffPage } from "./shop/pages/StaffPage.tsx";
-import { SettingsPage } from "./shop/pages/SettingsPage.tsx";
-import { PublicBarberBookingPage } from "./public-booking/PublicBarberBookingPage.tsx";
 import { BookingErrorBoundary } from "./public-booking/BookingErrorBoundary.tsx";
-import { RescheduleConfirmPage } from "./public-booking/RescheduleConfirmPage.tsx";
+import { RouteFallback } from "./RouteFallback.tsx";
 import { API_BASE_URL } from "./config";
+
+const AuthView = lazy(() =>
+  import("./components/auth/AuthView.tsx").then((m) => ({ default: m.AuthView })),
+);
+const ShopLoginView = lazy(() =>
+  import("./shop/ShopLoginView.tsx").then((m) => ({ default: m.ShopLoginView })),
+);
+const ShopLayout = lazy(() =>
+  import("./shop/ShopLayout.tsx").then((m) => ({ default: m.ShopLayout })),
+);
+const DashboardPage = lazy(() =>
+  import("./shop/pages/DashboardPage.tsx").then((m) => ({ default: m.DashboardPage })),
+);
+const CalendarPage = lazy(() =>
+  import("./shop/pages/CalendarPage.tsx").then((m) => ({ default: m.CalendarPage })),
+);
+const AppointmentsPage = lazy(() =>
+  import("./shop/pages/AppointmentsPage.tsx").then((m) => ({ default: m.AppointmentsPage })),
+);
+const CustomersPage = lazy(() =>
+  import("./shop/pages/CustomersPage.tsx").then((m) => ({ default: m.CustomersPage })),
+);
+const ServicesPage = lazy(() =>
+  import("./shop/pages/ServicesPage.tsx").then((m) => ({ default: m.ServicesPage })),
+);
+const InventoryPage = lazy(() =>
+  import("./shop/pages/InventoryPage.tsx").then((m) => ({ default: m.InventoryPage })),
+);
+const SalesPage = lazy(() =>
+  import("./shop/pages/SalesPage.tsx").then((m) => ({ default: m.SalesPage })),
+);
+const StaffPage = lazy(() =>
+  import("./shop/pages/StaffPage.tsx").then((m) => ({ default: m.StaffPage })),
+);
+const SettingsPage = lazy(() =>
+  import("./shop/pages/SettingsPage.tsx").then((m) => ({ default: m.SettingsPage })),
+);
+const PublicBarberBookingPage = lazy(() =>
+  import("./public-booking/PublicBarberBookingPage.tsx").then((m) => ({
+    default: m.PublicBarberBookingPage,
+  })),
+);
+const RescheduleConfirmPage = lazy(() =>
+  import("./public-booking/RescheduleConfirmPage.tsx").then((m) => ({
+    default: m.RescheduleConfirmPage,
+  })),
+);
+const Business = lazy(() =>
+  import("./components/super-admin/Business.tsx").then((m) => ({ default: m.Business })),
+);
+const Plans = lazy(() =>
+  import("./components/super-admin/Plans.tsx").then((m) => ({ default: m.Plans })),
+);
+const Users = lazy(() =>
+  import("./components/super-admin/Users.tsx").then((m) => ({ default: m.Users })),
+);
+const Dashboard = lazy(() =>
+  import("./components/super-admin/Dashboard.tsx").then((m) => ({ default: m.Dashboard })),
+);
+
+function Lazy({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 function PostLoginRedirect() {
   const u = session.getUser();
@@ -167,13 +213,29 @@ function DashboardLayout({
   const renderContent = () => {
     switch (activeItem) {
       case "dashboard":
-        return <Dashboard onNavigate={setActiveItem} health={message} />;
+        return (
+          <Lazy>
+            <Dashboard onNavigate={setActiveItem} health={message} />
+          </Lazy>
+        );
       case "shops":
-        return <Business />;
+        return (
+          <Lazy>
+            <Business />
+          </Lazy>
+        );
       case "users":
-        return <Users />;
+        return (
+          <Lazy>
+            <Users />
+          </Lazy>
+        );
       case "subscriptions":
-        return <Plans />;
+        return (
+          <Lazy>
+            <Plans />
+          </Lazy>
+        );
       case "appointments":
         return (
           <ComingSoon
@@ -378,7 +440,9 @@ function App() {
           isAuthenticated ? (
             <PostLoginRedirect />
           ) : (
-            <AuthView mode="signup" onAuthSuccess={handleAuthSuccess} />
+            <Lazy>
+              <AuthView mode="signup" onAuthSuccess={handleAuthSuccess} />
+            </Lazy>
           )
         }
       />
@@ -388,7 +452,9 @@ function App() {
           isAuthenticated ? (
             <PostLoginRedirect />
           ) : (
-            <AuthView mode="signin" onAuthSuccess={handleAuthSuccess} />
+            <Lazy>
+              <AuthView mode="signin" onAuthSuccess={handleAuthSuccess} />
+            </Lazy>
           )
         }
       />
@@ -400,7 +466,9 @@ function App() {
           ) : isAuthenticated && isSuperAdmin(session.getUser()) ? (
             <Navigate to="/super-admin" replace />
           ) : (
-            <ShopLoginView onAuthSuccess={handleAuthSuccess} />
+            <Lazy>
+              <ShopLoginView onAuthSuccess={handleAuthSuccess} />
+            </Lazy>
           )
         }
       />
@@ -421,35 +489,106 @@ function App() {
         path="/shop"
         element={
           isAuthenticated ? (
-            <ShopLayout onLogout={handleLogout} />
+            <Lazy>
+              <ShopLayout onLogout={handleLogout} />
+            </Lazy>
           ) : (
             <Navigate to="/shop/login" replace />
           )
         }
       >
         <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="calendar" element={<CalendarPage />} />
-        <Route path="appointments" element={<AppointmentsPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="services" element={<ServicesPage />} />
-        <Route path="inventory" element={<InventoryPage />} />
-        <Route path="sales" element={<SalesPage />} />
-        <Route path="staff" element={<StaffPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route
+          path="dashboard"
+          element={
+            <Lazy>
+              <DashboardPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="calendar"
+          element={
+            <Lazy>
+              <CalendarPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="appointments"
+          element={
+            <Lazy>
+              <AppointmentsPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="customers"
+          element={
+            <Lazy>
+              <CustomersPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="services"
+          element={
+            <Lazy>
+              <ServicesPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="inventory"
+          element={
+            <Lazy>
+              <InventoryPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="sales"
+          element={
+            <Lazy>
+              <SalesPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="staff"
+          element={
+            <Lazy>
+              <StaffPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <Lazy>
+              <SettingsPage />
+            </Lazy>
+          }
+        />
       </Route>
       <Route path="/dashboard" element={<Navigate to="/super-admin" replace />} />
       <Route
         path="/book/:businessSlug"
         element={
           <BookingErrorBoundary>
-            <PublicBarberBookingPage />
+            <Lazy>
+              <PublicBarberBookingPage />
+            </Lazy>
           </BookingErrorBoundary>
         }
       />
       <Route
         path="/appointment/reschedule/confirm/:token"
-        element={<RescheduleConfirmPage />}
+        element={
+          <Lazy>
+            <RescheduleConfirmPage />
+          </Lazy>
+        }
       />
     </Routes>
   );

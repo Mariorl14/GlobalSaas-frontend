@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/auth";
 import { session } from "../auth/session";
 import { IconAlert } from "./icons";
-import "./shop.css";
+import "./shop-login.css";
 
 export function ShopLoginView({
   onAuthSuccess,

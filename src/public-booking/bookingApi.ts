@@ -41,6 +41,19 @@ export type Slot = {
   employee_id: string | null;
 };
 
+export type PublicBootstrap = {
+  business: PublicBusiness;
+  services: PublicService[];
+  barbers: PublicBarber[];
+};
+
+export async function fetchPublicBootstrap(slug: string) {
+  const res = await axios.get<PublicBootstrap>(
+    `${base}/${encodeURIComponent(slug)}/bootstrap`,
+  );
+  return res.data;
+}
+
 export async function fetchPublicBusiness(slug: string) {
   const res = await axios.get<PublicBusiness>(`${base}/${encodeURIComponent(slug)}`);
   return res.data;

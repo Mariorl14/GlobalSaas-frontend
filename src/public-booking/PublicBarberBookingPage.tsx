@@ -6,6 +6,7 @@ import {
   fetchCalendarHints,
   fetchCustomerMe,
   fetchPublicBarbers,
+  fetchPublicBootstrap,
   fetchPublicBusiness,
   fetchPublicServices,
   submitPublicBooking,
@@ -39,6 +40,7 @@ export function PublicBarberBookingPage() {
   const [services, setServices] = useState<PublicService[]>([]);
   const [barbers, setBarbers] = useState<PublicBarber[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
 
   const [serviceId, setServiceId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -71,17 +73,30 @@ export function PublicBarberBookingPage() {
   const loadAll = useCallback(async () => {
     if (!slug) return;
     setLoadErr(null);
+    setCatalogLoading(true);
+    setBiz(null);
+    setServices([]);
+    setBarbers([]);
     try {
-      const [b, s, bar] = await Promise.all([
-        fetchPublicBusiness(slug),
-        fetchPublicServices(slug),
-        fetchPublicBarbers(slug),
-      ]);
-      setBiz(b);
-      setServices(s);
-      setBarbers(bar);
+      const data = await fetchPublicBootstrap(slug);
+      setBiz(data.business);
+      setServices(data.services);
+      setBarbers(data.barbers);
     } catch {
-      setLoadErr("No encontramos esta barbería o el enlace no es válido.");
+      try {
+        const b = await fetchPublicBusiness(slug);
+        setBiz(b);
+        const [s, bar] = await Promise.all([
+          fetchPublicServices(slug),
+          fetchPublicBarbers(slug),
+        ]);
+        setServices(s);
+        setBarbers(bar);
+      } catch {
+        setLoadErr("No encontramos esta barbería o el enlace no es válido.");
+      }
+    } finally {
+      setCatalogLoading(false);
     }
   }, [slug]);
 
@@ -248,7 +263,7 @@ export function PublicBarberBookingPage() {
   if (!biz) {
     return (
       <div className="pb-root pb-loading-screen">
-        Cargando…
+        {catalogLoading ? "Cargando…" : null}
       </div>
     );
   }
@@ -299,36 +314,44 @@ export function PublicBarberBookingPage() {
 
           {step === 1 && (
             <div className="pb-step-stack">
-              <ServiceSelector
-                services={services}
-                value={serviceId}
-                onChange={(id) => {
-                  setServiceId(id);
-                  setSelectedDate("");
-                  setSlotStart("");
-                }}
-              />
-              <BarberSelector
-                barbers={barbers}
-                allowAny={biz.allow_any_barber}
-                value={employeeId}
-                onChange={(id) => {
-                  setEmployeeId(id);
-                  setSelectedDate("");
-                  setSlotStart("");
-                }}
-              />
-              <div className="pb-actions" style={{ marginTop: 0 }}>
-                <button
-                  type="button"
-                  className="pb-btn pb-btn-primary"
-                  style={{ alignSelf: "flex-start" }}
-                  disabled={!serviceId || (!biz.allow_any_barber && !employeeId)}
-                  onClick={() => setStep(2)}
-                >
-                  Continuar
-                </button>
-              </div>
+              {catalogLoading ? (
+                <p className="pb-muted" style={{ margin: 0 }}>
+                  Cargando servicios…
+                </p>
+              ) : (
+                <>
+                  <ServiceSelector
+                    services={services}
+                    value={serviceId}
+                    onChange={(id) => {
+                      setServiceId(id);
+                      setSelectedDate("");
+                      setSlotStart("");
+                    }}
+                  />
+                  <BarberSelector
+                    barbers={barbers}
+                    allowAny={biz.allow_any_barber}
+                    value={employeeId}
+                    onChange={(id) => {
+                      setEmployeeId(id);
+                      setSelectedDate("");
+                      setSlotStart("");
+                    }}
+                  />
+                  <div className="pb-actions" style={{ marginTop: 0 }}>
+                    <button
+                      type="button"
+                      className="pb-btn pb-btn-primary"
+                      style={{ alignSelf: "flex-start" }}
+                      disabled={!serviceId || (!biz.allow_any_barber && !employeeId)}
+                      onClick={() => setStep(2)}
+                    >
+                      Continuar
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

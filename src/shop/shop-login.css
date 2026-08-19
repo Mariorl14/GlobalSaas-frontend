@@ -1,0 +1,167 @@
+/**
+ * Minimal styles for /shop/login — avoids loading the full tenant portal sheet.
+ */
+.bp-app {
+  --bp-bg: #f8f8f7;
+  --bp-surface: #ffffff;
+  --bp-text: #111827;
+  --bp-text-secondary: #6b7280;
+  --bp-text-tertiary: #9ca3af;
+  --bp-border: #ececec;
+  --bp-primary: #047857;
+  --bp-primary-hover: #065f46;
+  --bp-primary-ring: rgba(4, 120, 87, 0.28);
+  --bp-danger: #dc2626;
+  --bp-danger-soft: #fef2f2;
+  --bp-shadow-md: 0 8px 24px rgba(17, 24, 39, 0.07);
+  --bp-radius-sm: 8px;
+  --bp-radius-md: 12px;
+  --bp-radius-xl: 20px;
+  --bp-shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: var(--bp-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.bp-app *,
+.bp-app *::before,
+.bp-app *::after {
+  box-sizing: border-box;
+}
+
+.bp-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(4, 120, 87, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(15, 118, 110, 0.06), transparent 50%),
+    var(--bp-bg);
+}
+
+.bp-login__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bp-surface);
+  border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius-xl);
+  padding: 36px;
+  box-shadow: var(--bp-shadow-md);
+}
+
+.bp-login__eyebrow {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-primary);
+  margin-bottom: 8px;
+}
+
+.bp-login__title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+}
+
+.bp-login__text {
+  font-size: 14px;
+  color: var(--bp-text-secondary);
+  margin: 0 0 28px;
+  line-height: 1.45;
+}
+
+.bp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bp-text);
+}
+
+.bp-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius-sm);
+  background: var(--bp-surface);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--bp-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bp-input:focus {
+  outline: none;
+  border-color: var(--bp-primary);
+  box-shadow: 0 0 0 3px var(--bp-primary-ring);
+}
+
+.bp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--bp-radius-sm);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.bp-btn:active {
+  transform: translateY(1px);
+}
+
+.bp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bp-btn--primary {
+  background: var(--bp-primary);
+  color: #fff;
+  box-shadow: var(--bp-shadow-xs);
+}
+
+.bp-btn--primary:hover:not(:disabled) {
+  background: var(--bp-primary-hover);
+}
+
+.bp-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--bp-radius-md);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bp-alert--error {
+  background: var(--bp-danger-soft);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  color: var(--bp-danger);
+}
+
+.bp-alert svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}

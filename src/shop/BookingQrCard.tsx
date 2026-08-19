@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import { publicBookingUrl } from "../config";
 import "./BookingQrCard.css";
 
@@ -30,12 +29,15 @@ export function BookingQrCard({ slug, businessName, compact = false }: Props) {
     }
     let cancelled = false;
     setErr(null);
-    void QRCode.toDataURL(url, {
-      width: compact ? 220 : 420,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: { dark: "#0f172a", light: "#ffffff" },
-    })
+    void import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(url, {
+          width: compact ? 220 : 420,
+          margin: 2,
+          errorCorrectionLevel: "M",
+          color: { dark: "#0f172a", light: "#ffffff" },
+        }),
+      )
       .then((png) => {
         if (!cancelled) setDataUrl(png);
       })
