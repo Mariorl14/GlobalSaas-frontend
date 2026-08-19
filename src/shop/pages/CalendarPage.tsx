@@ -15,7 +15,9 @@ import { staffSwatch } from "../staffColors";
 import { PaymentMethodField } from "../PaymentMethodField";
 import {
   AppointmentCancelDialog,
+  AppointmentDeleteDialog,
   AppointmentRescheduleDialog,
+  appointmentCanCancel,
 } from "../AppointmentActionDialogs";
 import { isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
@@ -134,7 +136,7 @@ export function CalendarPage() {
   const [completePayOpen, setCompletePayOpen] = useState(false);
   const [completePay, setCompletePay] = useState("");
   const [saving, setSaving] = useState(false);
-  const [actionDialog, setActionDialog] = useState<"reschedule" | "cancel" | null>(null);
+  const [actionDialog, setActionDialog] = useState<"reschedule" | "cancel" | "delete" | null>(null);
 
   const range = useMemo(() => {
     if (view === "day") {
@@ -288,19 +290,10 @@ export function CalendarPage() {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!window.confirm("¿Eliminar esta cita?")) return;
-    try {
-      await axios.delete(`${API_BASE_URL}/api/shop/appointments/${id}`);
-      setSelected(null);
-      await load();
-    } catch (e: unknown) {
-      const msg =
-        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
-          ? (e.response.data as { error?: string }).error
-          : null;
-      setErr(msg ?? "No se pudo eliminar.");
-    }
+  const requestDelete = () => {
+    if (!selected) return;
+    setActionDialog("delete");
+    setErr(null);
   };
 
   const title =
@@ -632,20 +625,20 @@ export function CalendarPage() {
               <button
                 type="button"
                 className="bp-btn bp-btn--secondary bp-btn--sm"
-                disabled={saving || selected.status === "completed" || selected.status === "canceled"}
+                disabled={saving || !appointmentCanCancel(selected.status)}
                 onClick={() => {
                   setActionDialog("cancel");
                   setErr(null);
                 }}
               >
-                Cancelar
+                Cancelar cita
               </button>
               <button
                 type="button"
                 className="bp-btn bp-btn--danger bp-btn--sm"
-                onClick={() => void remove(selected.id)}
+                onClick={requestDelete}
               >
-                Eliminar
+                Eliminar cita
               </button>
               <button
                 type="button"
@@ -685,6 +678,21 @@ export function CalendarPage() {
             setActionDialog(null);
             await load();
             setSelected(null);
+            setErr(warning ?? null);
+          }}
+        />
+      ) : null}
+
+      {actionDialog === "delete" && selected ? (
+        <AppointmentDeleteDialog
+          appointment={selected}
+          serviceName={serviceName(selected.service_type_id)}
+          barberName={resolveStaffLabel(selected.employee_id)}
+          onClose={() => setActionDialog(null)}
+          onDone={async (warning) => {
+            setActionDialog(null);
+            setSelected(null);
+            await load();
             setErr(warning ?? null);
           }}
         />

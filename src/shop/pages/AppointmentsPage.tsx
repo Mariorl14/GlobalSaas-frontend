@@ -16,7 +16,9 @@ import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
 import {
   AppointmentCancelDialog,
+  AppointmentDeleteDialog,
   AppointmentRescheduleDialog,
+  appointmentCanCancel,
 } from "../AppointmentActionDialogs";
 import { session } from "../../auth/session";
 import { isShopStaff } from "../../auth/roles";
@@ -205,6 +207,7 @@ export function AppointmentsPage() {
     kind: "reschedule" | "cancel";
     appointment: Appointment;
   } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Appointment | null>(null);
 
   const [form, setForm] = useState({
     client_id: "",
@@ -589,18 +592,9 @@ export function AppointmentsPage() {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!window.confirm("¿Eliminar esta cita?")) return;
-    try {
-      await axios.delete(`${API_BASE_URL}/api/shop/appointments/${id}`);
-      await load();
-    } catch (e: unknown) {
-      const msg =
-        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
-          ? (e.response.data as { error?: string }).error
-          : null;
-      setErr(msg ?? "No se pudo eliminar.");
-    }
+  const remove = (appointment: Appointment) => {
+    setDeleteTarget(appointment);
+    setErr(null);
   };
 
   const serviceName = useCallback(
@@ -848,11 +842,23 @@ export function AppointmentsPage() {
                       </button>
                       <button
                         type="button"
+                        className="bp-btn bp-btn--secondary bp-btn--sm"
+                        disabled={!appointmentCanCancel(a.status)}
+                        onClick={() => {
+                          setActionTarget({ kind: "cancel", appointment: a });
+                          setErr(null);
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
                         className="bp-btn bp-btn--danger bp-btn--sm"
-                        onClick={() => void remove(a.id)}
-                        title="Eliminar"
+                        onClick={() => remove(a)}
+                        title="Eliminar de la agenda"
                       >
                         <IconTrash />
+                        Eliminar
                       </button>
                     </div>
                   </div>
@@ -1365,6 +1371,20 @@ export function AppointmentsPage() {
           onClose={() => setActionTarget(null)}
           onDone={async (warning) => {
             setActionTarget(null);
+            await load();
+            setErr(warning ?? null);
+          }}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <AppointmentDeleteDialog
+          appointment={deleteTarget}
+          serviceName={serviceName(deleteTarget.service_type_id)}
+          barberName={resolveStaffLabel(deleteTarget.employee_id)}
+          onClose={() => setDeleteTarget(null)}
+          onDone={async (warning) => {
+            setDeleteTarget(null);
             await load();
             setErr(warning ?? null);
           }}

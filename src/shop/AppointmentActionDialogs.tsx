@@ -67,6 +67,11 @@ function extractError(e: unknown, fallback: string): string {
   return fallback;
 }
 
+export function appointmentCanCancel(status: string): boolean {
+  const s = status.toLowerCase().replace("cancelled", "canceled");
+  return s !== "completed" && s !== "canceled";
+}
+
 type SharedProps = {
   appointment: LifecycleAppointment;
   serviceName: string;
@@ -319,6 +324,71 @@ export function AppointmentCancelDialog({
           </button>
           <button type="button" className="bp-btn bp-btn--danger" onClick={() => void submit()} disabled={saving}>
             {saving ? "Cancelando…" : "Cancelar cita"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function AppointmentDeleteDialog({
+  appointment,
+  serviceName,
+  barberName,
+  onClose,
+  onDone,
+}: SharedProps) {
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      await axios.delete(`${API_BASE_URL}/api/shop/appointments/${appointment.id}`);
+      onDone(null);
+    } catch (e: unknown) {
+      setErr(extractError(e, "No se pudo eliminar la cita."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" className="bp-panel__overlay" aria-label="Cerrar" onClick={onClose} />
+      <div className="bp-panel" role="dialog" aria-modal="true">
+        <div className="bp-panel__header">
+          <div>
+            <h2 className="bp-panel__title">¿Eliminar cita?</h2>
+            <p className="bp-panel__subtitle">
+              {appointment.client_name} · {formatWhen(appointment.start_time)}
+            </p>
+          </div>
+          <button type="button" className="bp-icon-btn" onClick={onClose}>
+            <IconClose />
+          </button>
+        </div>
+        <div className="bp-panel__body">
+          {err ? (
+            <div className="bp-alert bp-alert--error">
+              <span>{err}</span>
+            </div>
+          ) : null}
+          <div style={{ marginBottom: 12, color: "var(--bp-text-muted, #64748b)", fontSize: 13 }}>
+            {serviceName} · {barberName}
+          </div>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
+            Esta acción quita la cita de la agenda de forma permanente. Si solo quieres anularla,
+            usa <strong>Cancelar cita</strong> en su lugar.
+          </p>
+        </div>
+        <div className="bp-panel__footer">
+          <button type="button" className="bp-btn bp-btn--secondary" onClick={onClose} disabled={saving}>
+            Volver
+          </button>
+          <button type="button" className="bp-btn bp-btn--danger" onClick={() => void submit()} disabled={saving}>
+            {saving ? "Eliminando…" : "Eliminar cita"}
           </button>
         </div>
       </div>

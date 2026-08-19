@@ -26,6 +26,12 @@ import {
 } from "../icons";
 import { money, moneyExact } from "../../money";
 import { dateTimeShortFromIso } from "../../public-booking/formatters";
+import {
+  AppointmentCancelDialog,
+  AppointmentDeleteDialog,
+  appointmentCanCancel,
+  type LifecycleAppointment,
+} from "../AppointmentActionDialogs";
 
 type RangeKey =
   | "today"
@@ -165,9 +171,14 @@ type InsightsPayload = {
   upcoming_appointments: Array<{
     id: string;
     client_name: string;
+    client_email?: string | null;
     start_time: string | null;
+    end_time: string | null;
     status: string;
+    service_type_id: string;
     service_name?: string;
+    employee_id: string;
+    employee_name?: string | null;
   }>;
   empty: boolean;
 };
@@ -319,6 +330,12 @@ export function DashboardPage() {
     monthly_new_customers: 30,
   });
   const [savingGoals, setSavingGoals] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<InsightsPayload["upcoming_appointments"][number] | null>(
+    null,
+  );
+  const [deleteTarget, setDeleteTarget] = useState<InsightsPayload["upcoming_appointments"][number] | null>(
+    null,
+  );
 
   const admin = isShopAdmin(session.getUser());
   const name = userDisplayName(session.getUser()).replace(/[._]/g, " ") || "equipo";
@@ -366,6 +383,19 @@ export function DashboardPage() {
     if (chartMetric === "appointments") return "Citas";
     return "Ticket promedio";
   }, [chartMetric]);
+
+  const toLifecycleAppointment = (
+    a: InsightsPayload["upcoming_appointments"][number],
+  ): LifecycleAppointment => ({
+    id: a.id,
+    client_name: a.client_name,
+    client_email: a.client_email,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    status: a.status,
+    service_type_id: a.service_type_id,
+    employee_id: a.employee_id,
+  });
 
   if (err && !data) {
     return (
@@ -1191,7 +1221,7 @@ export function DashboardPage() {
                 {upcoming.map((a) => (
                   <div className="bp-appt-card" key={a.id}>
                     <div className="bp-appt-card__rail bp-appt-card__rail--scheduled" />
-                    <div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="bp-appt-card__time">
                         {a.start_time ? dateTimeShortFromIso(a.start_time) : "—"}
                       </div>
@@ -1201,6 +1231,23 @@ export function DashboardPage() {
                           {a.service_name}
                         </div>
                       ) : null}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="bp-btn bp-btn--secondary bp-btn--sm"
+                        disabled={!appointmentCanCancel(a.status)}
+                        onClick={() => setCancelTarget(a)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="bp-btn bp-btn--danger bp-btn--sm"
+                        onClick={() => setDeleteTarget(a)}
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1301,6 +1348,32 @@ export function DashboardPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {cancelTarget ? (
+        <AppointmentCancelDialog
+          appointment={toLifecycleAppointment(cancelTarget)}
+          serviceName={cancelTarget.service_name ?? "Servicio"}
+          barberName={cancelTarget.employee_name ?? "Staff"}
+          onClose={() => setCancelTarget(null)}
+          onDone={async () => {
+            setCancelTarget(null);
+            await load();
+          }}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <AppointmentDeleteDialog
+          appointment={toLifecycleAppointment(deleteTarget)}
+          serviceName={deleteTarget.service_name ?? "Servicio"}
+          barberName={deleteTarget.employee_name ?? "Staff"}
+          onClose={() => setDeleteTarget(null)}
+          onDone={async () => {
+            setDeleteTarget(null);
+            await load();
+          }}
+        />
       ) : null}
     </div>
   );
