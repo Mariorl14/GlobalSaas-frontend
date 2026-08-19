@@ -23,7 +23,7 @@ import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
-import { dateToNaiveLocalIso, toNaiveLocalIso } from "../appointmentDateTime";
+import { dateToNaiveLocalIso, appointmentLocalDate, appointmentMinutesOfDay, toDateTimeLocalValue, toNaiveLocalIso } from "../appointmentDateTime";
 
 type Appointment = {
   id: string;
@@ -98,11 +98,9 @@ function mondayOf(d: Date): Date {
   return addDays(x, diff);
 }
 
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function localDateKey(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function slots(): { label: string; minutes: number }[] {
@@ -116,12 +114,6 @@ function slots(): { label: string; minutes: number }[] {
     });
   }
   return out;
-}
-
-function minutesOfDay(iso: string | null): number {
-  if (!iso) return 0;
-  const d = new Date(iso);
-  return d.getHours() * 60 + d.getMinutes();
 }
 
 export function CalendarPage() {
@@ -180,11 +172,7 @@ export function CalendarPage() {
         { params },
       );
       setItems(
-        [...res.data.items].sort((a, b) => {
-          const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
-          const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
-          return ta - tb;
-        }),
+        [...res.data.items].sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? "")),
       );
     } catch {
       setErr("No se pudo cargar el calendario.");
@@ -219,10 +207,8 @@ export function CalendarPage() {
   };
 
   const dayItems = useMemo(() => {
-    const key = startOfDay(anchor).toDateString();
-    return items.filter(
-      (a) => a.start_time && startOfDay(new Date(a.start_time)).toDateString() === key,
-    );
+    const key = localDateKey(anchor);
+    return items.filter((a) => a.start_time && appointmentLocalDate(a.start_time) === key);
   }, [items, anchor]);
 
   const patchStatus = async (
@@ -277,8 +263,8 @@ export function CalendarPage() {
     setSaving(true);
     try {
       await axios.put(`${API_BASE_URL}/api/shop/appointments/${selected.id}`, {
-        start_time: toNaiveLocalIso(toLocalInput(selected.start_time)),
-        end_time: toNaiveLocalIso(toLocalInput(selected.end_time)),
+        start_time: toNaiveLocalIso(toDateTimeLocalValue(selected.start_time)),
+        end_time: toNaiveLocalIso(toDateTimeLocalValue(selected.end_time)),
         status: selected.status,
         notes: selected.notes,
       });
@@ -452,8 +438,8 @@ export function CalendarPage() {
               />
             ))}
             {dayItems.map((a) => {
-              const startM = minutesOfDay(a.start_time);
-              const endM = a.end_time ? minutesOfDay(a.end_time) : startM + 30;
+              const startM = appointmentMinutesOfDay(a.start_time);
+              const endM = a.end_time ? appointmentMinutesOfDay(a.end_time) : startM + 30;
               const top = Math.max(0, (startM - DAY_START_HOUR * 60) * pxPerMinute);
               const height = Math.max(28, (endM - startM) * pxPerMinute - 4);
               return (
@@ -484,11 +470,11 @@ export function CalendarPage() {
       ) : (
         <div className="bp-cal-week">
           {weekDays.map((day) => {
-            const key = day.toDateString();
+            const key = localDateKey(day);
             const list = items.filter(
-              (a) => a.start_time && startOfDay(new Date(a.start_time)).toDateString() === key,
+              (a) => a.start_time && appointmentLocalDate(a.start_time) === key,
             );
-            const isToday = key === startOfDay(new Date()).toDateString();
+            const isToday = key === localDateKey(new Date());
             return (
               <div key={key} className={`bp-cal-week__col ${isToday ? "is-today" : ""}`}>
                 <div className="bp-cal-week__head">
@@ -573,7 +559,7 @@ export function CalendarPage() {
                 timeId="cal-start-time"
                 dateLabel="Inicio · fecha"
                 timeLabel="Inicio · hora"
-                value={toLocalInput(selected.start_time)}
+                value={toDateTimeLocalValue(selected.start_time)}
                 onChange={(v) =>
                   setSelected((s) =>
                     s ? { ...s, start_time: v ? toNaiveLocalIso(v) : s.start_time } : s,
@@ -585,7 +571,7 @@ export function CalendarPage() {
                 timeId="cal-end-time"
                 dateLabel="Fin · fecha"
                 timeLabel="Fin · hora"
-                value={toLocalInput(selected.end_time)}
+                value={toDateTimeLocalValue(selected.end_time)}
                 onChange={(v) =>
                   setSelected((s) =>
                     s ? { ...s, end_time: v ? toNaiveLocalIso(v) : s.end_time } : s,

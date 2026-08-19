@@ -23,7 +23,7 @@ import {
 import { session } from "../../auth/session";
 import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { moneyExact } from "../../money";
-import { timeFromIso } from "../../public-booking/formatters";
+import { dateLineEs, timeFromIso } from "../../public-booking/formatters";
 import { TimeSelect12h } from "../TimeSelect12h";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
 import {
@@ -250,9 +250,9 @@ export function AppointmentsPage() {
         { params },
       );
       const sorted = [...res.data.items].sort((a, b) => {
-        const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
-        const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
-        return period === "all" ? tb - ta : ta - tb;
+        const ta = a.start_time ?? "";
+        const tb = b.start_time ?? "";
+        return period === "all" ? tb.localeCompare(ta) : ta.localeCompare(tb);
       });
       setItems(sorted);
     } catch (e: unknown) {
@@ -622,13 +622,7 @@ export function AppointmentsPage() {
   const grouped = useMemo(() => {
     const map = new Map<string, Appointment[]>();
     for (const a of visible) {
-      const key = a.start_time
-        ? new Date(a.start_time).toLocaleDateString("es-MX", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })
-        : "Sin fecha";
+      const key = a.start_time ? dateLineEs(a.start_time) : "Sin fecha";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(a);
     }
