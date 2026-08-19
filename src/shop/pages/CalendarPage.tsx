@@ -19,7 +19,7 @@ import {
   AppointmentRescheduleDialog,
   appointmentCanCancel,
 } from "../AppointmentActionDialogs";
-import { isShopStaff } from "../../auth/roles";
+import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
@@ -622,24 +622,28 @@ export function CalendarPage() {
               >
                 Reprogramar
               </button>
-              <button
-                type="button"
-                className="bp-btn bp-btn--secondary bp-btn--sm"
-                disabled={saving || !appointmentCanCancel(selected.status)}
-                onClick={() => {
-                  setActionDialog("cancel");
-                  setErr(null);
-                }}
-              >
-                Cancelar cita
-              </button>
-              <button
-                type="button"
-                className="bp-btn bp-btn--danger bp-btn--sm"
-                onClick={requestDelete}
-              >
-                Eliminar cita
-              </button>
+              {isShopAdmin(session.getUser()) ? (
+                <>
+                  <button
+                    type="button"
+                    className="bp-btn bp-btn--secondary bp-btn--sm"
+                    disabled={saving || !appointmentCanCancel(selected.status)}
+                    onClick={() => {
+                      setActionDialog("cancel");
+                      setErr(null);
+                    }}
+                  >
+                    Cancelar cita
+                  </button>
+                  <button
+                    type="button"
+                    className="bp-btn bp-btn--danger bp-btn--sm"
+                    onClick={requestDelete}
+                  >
+                    Eliminar cita
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
                 className="bp-btn bp-btn--primary"

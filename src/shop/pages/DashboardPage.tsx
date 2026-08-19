@@ -1232,23 +1232,25 @@ export function DashboardPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <button
-                        type="button"
-                        className="bp-btn bp-btn--secondary bp-btn--sm"
-                        disabled={!appointmentCanCancel(a.status)}
-                        onClick={() => setCancelTarget(a)}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        className="bp-btn bp-btn--danger bp-btn--sm"
-                        onClick={() => setDeleteTarget(a)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+                    {admin ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          className="bp-btn bp-btn--secondary bp-btn--sm"
+                          disabled={!appointmentCanCancel(a.status)}
+                          onClick={() => setCancelTarget(a)}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className="bp-btn bp-btn--danger bp-btn--sm"
+                          onClick={() => setDeleteTarget(a)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1369,9 +1371,10 @@ export function DashboardPage() {
           serviceName={deleteTarget.service_name ?? "Servicio"}
           barberName={deleteTarget.employee_name ?? "Staff"}
           onClose={() => setDeleteTarget(null)}
-          onDone={async () => {
+          onDone={async (warning) => {
             setDeleteTarget(null);
             await load();
+            if (warning) setErr(warning);
           }}
         />
       ) : null}

@@ -21,7 +21,7 @@ import {
   appointmentCanCancel,
 } from "../AppointmentActionDialogs";
 import { session } from "../../auth/session";
-import { isShopStaff } from "../../auth/roles";
+import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { moneyExact } from "../../money";
 import { timeFromIso } from "../../public-booking/formatters";
 import { TimeSelect12h } from "../TimeSelect12h";
@@ -154,6 +154,7 @@ export function AppointmentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const user = session.getUser();
   const staffOnly = isShopStaff(user);
+  const manager = isShopAdmin(user);
   const myEmployeeId = user?.employee_id ?? "";
   const [items, setItems] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Opt[]>([]);
@@ -823,7 +824,7 @@ export function AppointmentsPage() {
                         <option value="scheduled">Programada</option>
                         <option value="confirmed">Confirmada</option>
                         <option value="completed">Completada</option>
-                        <option value="canceled">Cancelada</option>
+                        {manager ? <option value="canceled">Cancelada</option> : null}
                         <option value="no_show">No asistió</option>
                         {a.status === "reschedule_pending" ? (
                           <option value="reschedule_pending">Por confirmar</option>
@@ -840,26 +841,30 @@ export function AppointmentsPage() {
                       >
                         Reprogramar
                       </button>
-                      <button
-                        type="button"
-                        className="bp-btn bp-btn--secondary bp-btn--sm"
-                        disabled={!appointmentCanCancel(a.status)}
-                        onClick={() => {
-                          setActionTarget({ kind: "cancel", appointment: a });
-                          setErr(null);
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        className="bp-btn bp-btn--danger bp-btn--sm"
-                        onClick={() => remove(a)}
-                        title="Eliminar de la agenda"
-                      >
-                        <IconTrash />
-                        Eliminar
-                      </button>
+                      {manager ? (
+                        <>
+                          <button
+                            type="button"
+                            className="bp-btn bp-btn--secondary bp-btn--sm"
+                            disabled={!appointmentCanCancel(a.status)}
+                            onClick={() => {
+                              setActionTarget({ kind: "cancel", appointment: a });
+                              setErr(null);
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className="bp-btn bp-btn--danger bp-btn--sm"
+                            onClick={() => remove(a)}
+                            title="Eliminar de la agenda"
+                          >
+                            <IconTrash />
+                            Eliminar
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 ))}
