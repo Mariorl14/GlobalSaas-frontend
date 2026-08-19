@@ -83,7 +83,6 @@ export function SettingsPage() {
         address: form.address.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
-        logo_url: form.logo_url.trim() || null,
         business_hours_json: serializeWeeklySchedule(hours),
         booking_notes: form.booking_notes.trim() || null,
       });
