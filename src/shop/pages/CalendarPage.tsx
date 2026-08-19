@@ -331,7 +331,7 @@ export function CalendarPage() {
           <Link to="/shop/appointments" className="bp-btn bp-btn--secondary">
             Lista de citas
           </Link>
-          <Link to="/shop/appointments" className="bp-btn bp-btn--primary">
+          <Link to="/shop/appointments?new=1" className="bp-btn bp-btn--primary">
             <IconPlus />
             Nueva cita
           </Link>

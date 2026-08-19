@@ -24,6 +24,11 @@ import { moneyExact } from "../../money";
 import { timeFromIso } from "../../public-booking/formatters";
 import { TimeSelect12h } from "../TimeSelect12h";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
+import {
+  defaultAppointmentStart,
+  endFromStartAndDuration,
+  resolveAppointmentEnd,
+} from "../appointmentDateTime";
 
 type Appointment = {
   id: string;
@@ -152,7 +157,16 @@ export function AppointmentsPage() {
   const [clients, setClients] = useState<Opt[]>([]);
   const [services, setServices] = useState<SvcOpt[]>([]);
   const [staff, setStaff] = useState<
-    { employee_id: string; email: string | null; display_name: string | null; label?: string | null; full_name?: string | null; first_name?: string | null; last_name?: string | null }[]
+    {
+      employee_id: string;
+      email: string | null;
+      display_name: string | null;
+      label?: string | null;
+      full_name?: string | null;
+      first_name?: string | null;
+      last_name?: string | null;
+      is_active?: boolean;
+    }[]
   >([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -196,12 +210,17 @@ export function AppointmentsPage() {
     client_id: "",
     service_type_id: "",
     employee_id: "",
-    start: "",
+    start: defaultAppointmentStart(),
     end: "",
     status: "scheduled",
     notes: "",
     payment_method: "",
   });
+
+  const activeStaff = useMemo(
+    () => staff.filter((s) => s.is_active !== false),
+    [staff],
+  );
 
   const loadRefs = useCallback(async () => {
     const [c, s, t] = await Promise.all([
@@ -280,6 +299,53 @@ export function AppointmentsPage() {
     );
   }, [searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    unlockShopAudio();
+    openNewAppointmentPanel();
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!staffOnly) return;
+    void axios
+      .get<{ employee_id: string | null }>(`${API_BASE_URL}/api/shop/me`)
+      .then((res) => {
+        const eid = res.data.employee_id;
+        if (!eid) return;
+        const u = session.getUser();
+        if (u && u.employee_id !== eid) {
+          session.setUser({ ...u, employee_id: eid });
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [staffOnly]);
+
+  useEffect(() => {
+    if (!panelOpen || staffOnly || form.employee_id) return;
+    if (activeStaff.length === 1) {
+      setForm((f) => ({ ...f, employee_id: activeStaff[0].employee_id }));
+    }
+  }, [panelOpen, staffOnly, form.employee_id, activeStaff]);
+
+  useEffect(() => {
+    if (!panelOpen || !form.service_type_id || !form.start) return;
+    const svc = services.find((s) => s.id === form.service_type_id);
+    if (!svc?.duration) return;
+    const computed = endFromStartAndDuration(form.start, svc.duration);
+    if (!computed) return;
+    setForm((f) => (f.end === computed ? f : { ...f, end: computed }));
+  }, [panelOpen, form.service_type_id, form.start, services]);
+
   const submitWalkIn = async () => {
     setErr(null);
     const assignedEmployeeId = staffOnly ? myEmployeeId : walkIn.employee_id;
@@ -336,11 +402,14 @@ export function AppointmentsPage() {
   };
 
   const resetPanel = () => {
+    const start = defaultAppointmentStart();
+    const soleStaffId =
+      !staffOnly && activeStaff.length === 1 ? activeStaff[0].employee_id : "";
     setForm({
       client_id: "",
       service_type_id: "",
-      employee_id: staffOnly ? myEmployeeId : "",
-      start: "",
+      employee_id: staffOnly ? myEmployeeId : soleStaffId,
+      start,
       end: "",
       status: "scheduled",
       notes: "",
@@ -351,15 +420,30 @@ export function AppointmentsPage() {
     setErr(null);
   };
 
+  const openNewAppointmentPanel = () => {
+    resetPanel();
+    setPanelOpen(true);
+  };
+
   const create = async () => {
     setErr(null);
     const assignedEmployeeId = staffOnly ? myEmployeeId : form.employee_id;
-    if (!form.service_type_id || !assignedEmployeeId || !form.start || !form.end) {
-      setErr(
+    const svc = services.find((s) => s.id === form.service_type_id);
+    const endTime = resolveAppointmentEnd(form.start, form.end, svc?.duration);
+
+    const missing: string[] = [];
+    if (!form.service_type_id) missing.push("servicio");
+    if (!assignedEmployeeId) {
+      missing.push(
         staffOnly
-          ? "Completa servicio e horario. (Re-inicia sesión si no se detecta tu perfil.)"
-          : "Completa servicio, staff e horario.",
+          ? "tu perfil de staff (cierra sesión y vuelve a entrar)"
+          : "barbero/staff",
       );
+    }
+    if (!form.start) missing.push("fecha y hora de inicio");
+    if (!endTime) missing.push("hora de fin");
+    if (missing.length) {
+      setErr(`Completa: ${missing.join(", ")}.`);
       return;
     }
     if (form.status === "completed" && !form.payment_method) {
@@ -402,7 +486,7 @@ export function AppointmentsPage() {
           service_type_id: form.service_type_id,
           employee_id: assignedEmployeeId,
           start_time: new Date(form.start).toISOString(),
-          end_time: new Date(form.end).toISOString(),
+          end_time: new Date(endTime).toISOString(),
           status: form.status,
           notes: form.notes || undefined,
           ...(form.status === "completed"
@@ -581,8 +665,7 @@ export function AppointmentsPage() {
             className="bp-btn bp-btn--primary"
             onClick={() => {
               unlockShopAudio();
-              resetPanel();
-              setPanelOpen(true);
+              openNewAppointmentPanel();
             }}
           >
             <IconPlus />
@@ -689,7 +772,7 @@ export function AppointmentsPage() {
             >
               Walk-in
             </button>
-            <button type="button" className="bp-btn bp-btn--primary bp-btn--sm" onClick={() => { resetPanel(); setPanelOpen(true); }}>
+            <button type="button" className="bp-btn bp-btn--primary bp-btn--sm" onClick={openNewAppointmentPanel}>
               <IconPlus />
               Nueva cita
             </button>
@@ -894,7 +977,7 @@ export function AppointmentsPage() {
                     onChange={(e) => setWalkIn((f) => ({ ...f, employee_id: e.target.value }))}
                   >
                     <option value="">Selecciona staff</option>
-                    {staff.map((s) => (
+                    {activeStaff.map((s) => (
                       <option key={s.employee_id} value={s.employee_id}>
                         {staffLabel(s)}
                       </option>
@@ -1066,12 +1149,23 @@ export function AppointmentsPage() {
                 <select
                   className="bp-select"
                   value={form.service_type_id}
-                  onChange={(e) => setForm((f) => ({ ...f, service_type_id: e.target.value }))}
+                  onChange={(e) => {
+                    const service_type_id = e.target.value;
+                    setForm((f) => {
+                      const svc = services.find((s) => s.id === service_type_id);
+                      const end =
+                        f.start && svc?.duration
+                          ? endFromStartAndDuration(f.start, svc.duration)
+                          : f.end;
+                      return { ...f, service_type_id, end };
+                    });
+                  }}
                 >
                   <option value="">Selecciona un servicio</option>
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
+                      {s.duration ? ` (${s.duration} min)` : ""}
                     </option>
                   ))}
                 </select>
@@ -1081,6 +1175,16 @@ export function AppointmentsPage() {
                 {staffOnly ? (
                   <p className="bp-hint" style={{ margin: 0 }}>
                     La cita se asigna a ti automáticamente.
+                    {!myEmployeeId ? (
+                      <>
+                        {" "}
+                        Si ves este aviso, cierra sesión y vuelve a entrar para vincular tu perfil.
+                      </>
+                    ) : null}
+                  </p>
+                ) : activeStaff.length === 0 ? (
+                  <p className="bp-hint" style={{ margin: 0, color: "var(--bp-danger)" }}>
+                    No hay staff activo. Agrega personal en la sección Staff antes de crear citas.
                   </p>
                 ) : (
                   <select
@@ -1089,7 +1193,7 @@ export function AppointmentsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, employee_id: e.target.value }))}
                   >
                     <option value="">Selecciona staff</option>
-                    {staff.map((s) => (
+                    {activeStaff.map((s) => (
                       <option key={s.employee_id} value={s.employee_id}>
                         {staffLabel(s)}
                       </option>
@@ -1100,19 +1204,29 @@ export function AppointmentsPage() {
               <DateTimeLocalFields
                 dateId="appt-start-date"
                 timeId="appt-start-time"
-                dateLabel="Inicio · fecha"
-                timeLabel="Inicio · hora"
+                dateLabel="Fecha"
+                timeLabel="Hora de inicio"
                 value={form.start}
-                onChange={(start) => setForm((f) => ({ ...f, start }))}
+                onChange={(start) => {
+                  setForm((f) => {
+                    const svc = services.find((s) => s.id === f.service_type_id);
+                    const end =
+                      start && svc?.duration
+                        ? endFromStartAndDuration(start, svc.duration)
+                        : f.end;
+                    return { ...f, start, end };
+                  });
+                }}
               />
-              <DateTimeLocalFields
-                dateId="appt-end-date"
-                timeId="appt-end-time"
-                dateLabel="Fin · fecha"
-                timeLabel="Fin · hora"
-                value={form.end}
-                onChange={(end) => setForm((f) => ({ ...f, end }))}
-              />
+              {form.start && form.end ? (
+                <p className="bp-hint" style={{ margin: "-4px 0 0" }}>
+                  Finaliza a las {timeFromIso(form.end)} (duración del servicio).
+                </p>
+              ) : form.start ? (
+                <p className="bp-hint" style={{ margin: "-4px 0 0" }}>
+                  Selecciona un servicio para calcular la hora de fin automáticamente.
+                </p>
+              ) : null}
               <div className="bp-field">
                 <label className="bp-label">Estado inicial</label>
                 <select

@@ -422,7 +422,7 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
               <button
                 type="button"
                 className="bp-btn bp-btn--primary bp-btn--sm bp-topbar__new-appt"
-                onClick={() => navigate("/shop/appointments")}
+                onClick={() => navigate("/shop/appointments?new=1")}
               >
                 <IconPlus />
                 <span className="bp-topbar__new-appt-label">Nueva cita</span>

@@ -465,7 +465,7 @@ export function DashboardPage() {
           <Link to="/shop/appointments?walkin=1" className="bp-btn bp-btn--secondary">
             Walk-in
           </Link>
-          <Link to="/shop/appointments" className="bp-btn bp-btn--primary">
+          <Link to="/shop/appointments?new=1" className="bp-btn bp-btn--primary">
             <IconPlus />
             Nueva cita
           </Link>
@@ -710,7 +710,7 @@ export function DashboardPage() {
                     <IconChevronRight />
                   </span>
                 </Link>
-                <Link to="/shop/appointments" className="bp-quick-action">
+                <Link to="/shop/appointments?new=1" className="bp-quick-action">
                   <span className="bp-quick-action__icon">
                     <IconPlus />
                   </span>
