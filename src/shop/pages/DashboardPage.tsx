@@ -1232,8 +1232,15 @@ export function DashboardPage() {
                         </div>
                       ) : null}
                     </div>
-                    {admin ? (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <Link
+                          to={`/shop/appointments?edit=${a.id}`}
+                          className="bp-btn bp-btn--secondary bp-btn--sm"
+                        >
+                          Editar
+                        </Link>
+                        {admin ? (
+                          <>
                         <button
                           type="button"
                           className="bp-btn bp-btn--secondary bp-btn--sm"
@@ -1249,8 +1256,9 @@ export function DashboardPage() {
                         >
                           Eliminar
                         </button>
+                          </>
+                        ) : null}
                       </div>
-                    ) : null}
                   </div>
                 ))}
               </div>

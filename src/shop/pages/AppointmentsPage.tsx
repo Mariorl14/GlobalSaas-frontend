@@ -5,6 +5,7 @@ import { API_BASE_URL } from "../../config";
 import { rememberAppointmentIds } from "../appointmentAlerts";
 import {
   IconPlus,
+  IconEdit,
   IconTrash,
   IconClose,
   IconCalendar,
@@ -32,6 +33,7 @@ import {
   localDayEndIso,
   localDayStartIso,
   resolveAppointmentEnd,
+  toDateTimeLocalValue,
   toNaiveLocalIso,
 } from "../appointmentDateTime";
 
@@ -176,6 +178,8 @@ export function AppointmentsPage() {
   const [statusF, setStatusF] = useState("");
   const [search, setSearch] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const isEditing = Boolean(editId);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkIn, setWalkIn] = useState({
     name: "",
@@ -422,13 +426,63 @@ export function AppointmentsPage() {
     });
     setClientMode("existing");
     setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
+    setEditId(null);
     setErr(null);
   };
+
+  const openEditPanel = useCallback((a: Appointment) => {
+    setEditId(a.id);
+    setClientMode("existing");
+    setForm({
+      client_id: a.client_id,
+      service_type_id: a.service_type_id,
+      employee_id: a.employee_id,
+      start: toDateTimeLocalValue(a.start_time),
+      end: toDateTimeLocalValue(a.end_time),
+      status: a.status,
+      notes: a.notes ?? "",
+      payment_method: "",
+    });
+    setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
+    setPanelOpen(true);
+    setErr(null);
+  }, []);
 
   const openNewAppointmentPanel = () => {
     resetPanel();
     setPanelOpen(true);
   };
+
+  useEffect(() => {
+    const editParam = searchParams.get("edit");
+    if (!editParam) return;
+
+    const openFromParam = async () => {
+      const found = items.find((x) => x.id === editParam);
+      if (found) {
+        openEditPanel(found);
+        return;
+      }
+      try {
+        const res = await axios.get<Appointment>(
+          `${API_BASE_URL}/api/shop/appointments/${editParam}`,
+        );
+        openEditPanel(res.data);
+      } catch {
+        setErr("No se pudo abrir la cita para editar.");
+      }
+    };
+
+    void openFromParam();
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("edit");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams, items, openEditPanel]);
 
   const create = async () => {
     setErr(null);
@@ -451,12 +505,21 @@ export function AppointmentsPage() {
       setErr(`Completa: ${missing.join(", ")}.`);
       return;
     }
-    if (form.status === "completed" && !form.payment_method) {
+    if (form.status === "completed" && !form.payment_method && !isEditing) {
+      setErr("Selecciona el método de pago para registrar el ingreso.");
+      return;
+    }
+    if (
+      isEditing &&
+      form.status === "completed" &&
+      !form.payment_method &&
+      items.find((x) => x.id === editId)?.status !== "completed"
+    ) {
       setErr("Selecciona el método de pago para registrar el ingreso.");
       return;
     }
 
-    if (clientMode === "new") {
+    if (!isEditing && clientMode === "new") {
       if (!newClient.first_name.trim()) {
         setErr("Para un cliente nuevo indica al menos el nombre.");
         return;
@@ -469,7 +532,7 @@ export function AppointmentsPage() {
     setSaving(true);
     try {
       let clientId = form.client_id;
-      if (clientMode === "new") {
+      if (!isEditing && clientMode === "new") {
         const fn = newClient.first_name.trim();
         const ln = newClient.last_name.trim() || "—";
         const phone = newClient.phone.trim();
@@ -484,25 +547,35 @@ export function AppointmentsPage() {
         await loadRefs();
       }
 
-      const createdAppt = await axios.post<{ id: string }>(
-        `${API_BASE_URL}/api/shop/appointments`,
-        {
-          client_id: clientId,
-          service_type_id: form.service_type_id,
-          employee_id: assignedEmployeeId,
-          start_time: toNaiveLocalIso(form.start),
-          end_time: toNaiveLocalIso(endTime),
-          status: form.status,
-          notes: form.notes || undefined,
-          ...(form.status === "completed"
-            ? { payment_method: form.payment_method }
-            : {}),
-        },
-      );
-      if (createdAppt.data?.id) {
-        rememberAppointmentIds([createdAppt.data.id]);
+      const payload = {
+        client_id: clientId,
+        service_type_id: form.service_type_id,
+        employee_id: assignedEmployeeId,
+        start_time: toNaiveLocalIso(form.start),
+        end_time: toNaiveLocalIso(endTime),
+        status: form.status,
+        notes: form.notes || null,
+        ...(form.status === "completed" && form.payment_method
+          ? { payment_method: form.payment_method }
+          : {}),
+      };
+
+      if (isEditing && editId) {
+        await axios.put(`${API_BASE_URL}/api/shop/appointments/${editId}`, payload);
+      } else {
+        const createdAppt = await axios.post<{ id: string }>(
+          `${API_BASE_URL}/api/shop/appointments`,
+          {
+            ...payload,
+            notes: form.notes || undefined,
+          },
+        );
+        if (createdAppt.data?.id) {
+          rememberAppointmentIds([createdAppt.data.id]);
+        }
+        playAppointmentChime();
       }
-      playAppointmentChime();
+
       resetPanel();
       setPanelOpen(false);
       await load();
@@ -510,8 +583,8 @@ export function AppointmentsPage() {
       const msg =
         axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
           ? (e.response.data as { error?: string }).error
-          : "No se pudo crear.";
-      setErr(msg ?? "No se pudo crear.");
+          : null;
+      setErr(msg ?? (isEditing ? "No se pudo guardar." : "No se pudo crear."));
     } finally {
       setSaving(false);
     }
@@ -828,6 +901,14 @@ export function AppointmentsPage() {
                       <button
                         type="button"
                         className="bp-btn bp-btn--secondary bp-btn--sm"
+                        onClick={() => openEditPanel(a)}
+                      >
+                        <IconEdit />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="bp-btn bp-btn--secondary bp-btn--sm"
                         disabled={a.status === "completed" || a.status === "canceled"}
                         onClick={() => {
                           setActionTarget({ kind: "reschedule", appointment: a });
@@ -1041,8 +1122,12 @@ export function AppointmentsPage() {
           <div className="bp-panel bp-panel--wide" role="dialog" aria-modal="true">
             <div className="bp-panel__header">
               <div>
-                <h2 className="bp-panel__title">Nueva cita</h2>
-                <p className="bp-panel__subtitle">Reserva un horario para un cliente de tu negocio.</p>
+                <h2 className="bp-panel__title">{isEditing ? "Editar cita" : "Nueva cita"}</h2>
+                <p className="bp-panel__subtitle">
+                  {isEditing
+                    ? "Actualiza cliente, servicio, horario o notas."
+                    : "Reserva un horario para un cliente de tu negocio."}
+                </p>
               </div>
               <button
                 type="button"
@@ -1065,28 +1150,30 @@ export function AppointmentsPage() {
               ) : null}
               <div className="bp-field">
                 <label className="bp-label">Cliente</label>
-                <div className="bp-seg" role="tablist" aria-label="Tipo de cliente">
-                  <button
-                    type="button"
-                    role="tab"
-                    className={clientMode === "existing" ? "is-active" : ""}
-                    aria-selected={clientMode === "existing"}
-                    onClick={() => setClientMode("existing")}
-                  >
-                    Existente
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={clientMode === "new" ? "is-active" : ""}
-                    aria-selected={clientMode === "new"}
-                    onClick={() => setClientMode("new")}
-                  >
-                    Cliente nuevo
-                  </button>
-                </div>
+                {!isEditing ? (
+                  <div className="bp-seg" role="tablist" aria-label="Tipo de cliente">
+                    <button
+                      type="button"
+                      role="tab"
+                      className={clientMode === "existing" ? "is-active" : ""}
+                      aria-selected={clientMode === "existing"}
+                      onClick={() => setClientMode("existing")}
+                    >
+                      Existente
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      className={clientMode === "new" ? "is-active" : ""}
+                      aria-selected={clientMode === "new"}
+                      onClick={() => setClientMode("new")}
+                    >
+                      Cliente nuevo
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              {clientMode === "existing" ? (
+              {(isEditing || clientMode === "existing") ? (
                 <div className="bp-field">
                   <select
                     className="bp-select"
@@ -1234,7 +1321,7 @@ export function AppointmentsPage() {
                 </p>
               ) : null}
               <div className="bp-field">
-                <label className="bp-label">Estado inicial</label>
+                <label className="bp-label">{isEditing ? "Estado" : "Estado inicial"}</label>
                 <select
                   className="bp-select"
                   value={form.status}
@@ -1243,11 +1330,15 @@ export function AppointmentsPage() {
                   <option value="scheduled">Programada</option>
                   <option value="confirmed">Confirmada</option>
                   <option value="completed">Completada</option>
-                  <option value="canceled">Cancelada</option>
+                  {manager || !isEditing ? <option value="canceled">Cancelada</option> : null}
                   <option value="no_show">No asistió</option>
+                  {form.status === "reschedule_pending" ? (
+                    <option value="reschedule_pending">Por confirmar</option>
+                  ) : null}
                 </select>
               </div>
-              {form.status === "completed" ? (
+              {form.status === "completed" &&
+              (!isEditing || items.find((x) => x.id === editId)?.status !== "completed") ? (
                 <PaymentMethodField
                   value={form.payment_method}
                   onChange={(v) => setForm((f) => ({ ...f, payment_method: v }))}
@@ -1281,7 +1372,13 @@ export function AppointmentsPage() {
                 onClick={() => void create()}
                 disabled={saving}
               >
-                {saving ? "Creando…" : "Crear cita"}
+                {saving
+                  ? isEditing
+                    ? "Guardando…"
+                    : "Creando…"
+                  : isEditing
+                    ? "Guardar cambios"
+                    : "Crear cita"}
               </button>
             </div>
           </div>
