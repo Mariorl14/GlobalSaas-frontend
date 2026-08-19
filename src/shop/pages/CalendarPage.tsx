@@ -23,6 +23,7 @@ import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
+import { dateToNaiveLocalIso, toNaiveLocalIso } from "../appointmentDateTime";
 
 type Appointment = {
   id: string;
@@ -170,8 +171,8 @@ export function CalendarPage() {
     setErr(null);
     try {
       const params: Record<string, string> = {
-        from: range.from.toISOString(),
-        to: range.to.toISOString(),
+        from: dateToNaiveLocalIso(range.from),
+        to: dateToNaiveLocalIso(range.to),
       };
       if (employeeId) params.employee_id = employeeId;
       const res = await axios.get<{ items: Appointment[] }>(
@@ -276,8 +277,8 @@ export function CalendarPage() {
     setSaving(true);
     try {
       await axios.put(`${API_BASE_URL}/api/shop/appointments/${selected.id}`, {
-        start_time: new Date(toLocalInput(selected.start_time)).toISOString(),
-        end_time: new Date(toLocalInput(selected.end_time)).toISOString(),
+        start_time: toNaiveLocalIso(toLocalInput(selected.start_time)),
+        end_time: toNaiveLocalIso(toLocalInput(selected.end_time)),
         status: selected.status,
         notes: selected.notes,
       });
@@ -575,7 +576,7 @@ export function CalendarPage() {
                 value={toLocalInput(selected.start_time)}
                 onChange={(v) =>
                   setSelected((s) =>
-                    s ? { ...s, start_time: v ? new Date(v).toISOString() : s.start_time } : s,
+                    s ? { ...s, start_time: v ? toNaiveLocalIso(v) : s.start_time } : s,
                   )
                 }
               />
@@ -587,7 +588,7 @@ export function CalendarPage() {
                 value={toLocalInput(selected.end_time)}
                 onChange={(v) =>
                   setSelected((s) =>
-                    s ? { ...s, end_time: v ? new Date(v).toISOString() : s.end_time } : s,
+                    s ? { ...s, end_time: v ? toNaiveLocalIso(v) : s.end_time } : s,
                   )
                 }
               />

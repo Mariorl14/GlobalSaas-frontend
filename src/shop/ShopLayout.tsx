@@ -11,6 +11,7 @@ import {
   shopRoleLabel,
 } from "../auth/roles";
 import { API_BASE_URL } from "../config";
+import { dateToNaiveLocalIso } from "./appointmentDateTime";
 import { mediaUrl } from "../mediaUrl";
 import { syncAppointmentIds } from "./appointmentAlerts";
 import {
@@ -191,8 +192,8 @@ export function ShopLayout({ onLogout }: { onLogout: () => void }) {
           `${API_BASE_URL}/api/shop/appointments`,
           {
             params: {
-              from: from.toISOString(),
-              to: to.toISOString(),
+              from: dateToNaiveLocalIso(from),
+              to: dateToNaiveLocalIso(to),
             },
           },
         );

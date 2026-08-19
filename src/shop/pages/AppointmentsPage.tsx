@@ -29,7 +29,10 @@ import { DateTimeLocalFields } from "../DateTimeLocalFields";
 import {
   defaultAppointmentStart,
   endFromStartAndDuration,
+  localDayEndIso,
+  localDayStartIso,
   resolveAppointmentEnd,
+  toNaiveLocalIso,
 } from "../appointmentDateTime";
 
 type Appointment = {
@@ -105,12 +108,6 @@ function startOfLocalDay(d = new Date()): Date {
   return x;
 }
 
-function endOfLocalDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-
 function rangeForPeriod(
   period: Period,
   customFrom: string,
@@ -121,32 +118,32 @@ function rangeForPeriod(
   if (period === "all") return {};
 
   if (period === "today") {
-    return { from: today.toISOString(), to: endOfLocalDay(today).toISOString() };
+    return { from: localDayStartIso(today), to: localDayEndIso(today) };
   }
 
   if (period === "week") {
     const end = new Date(today);
     end.setDate(end.getDate() + 6);
-    return { from: today.toISOString(), to: endOfLocalDay(end).toISOString() };
+    return { from: localDayStartIso(today), to: localDayEndIso(end) };
   }
 
   if (period === "two_weeks") {
     const end = new Date(today);
     end.setDate(end.getDate() + 13);
-    return { from: today.toISOString(), to: endOfLocalDay(end).toISOString() };
+    return { from: localDayStartIso(today), to: localDayEndIso(end) };
   }
 
   if (period === "month") {
     const end = new Date(today);
     end.setMonth(end.getMonth() + 1);
     end.setDate(end.getDate() - 1);
-    return { from: today.toISOString(), to: endOfLocalDay(end).toISOString() };
+    return { from: localDayStartIso(today), to: localDayEndIso(end) };
   }
 
   // custom
   const params: { from?: string; to?: string } = {};
-  if (customFrom) params.from = new Date(customFrom).toISOString();
-  if (customTo) params.to = new Date(customTo).toISOString();
+  if (customFrom) params.from = toNaiveLocalIso(`${customFrom}T00:00:00`);
+  if (customTo) params.to = toNaiveLocalIso(`${customTo}T23:59:59`);
   return params;
 }
 
@@ -258,8 +255,12 @@ export function AppointmentsPage() {
         return period === "all" ? tb - ta : ta - tb;
       });
       setItems(sorted);
-    } catch {
-      setErr("Error al cargar citas.");
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "Error al cargar citas.");
     } finally {
       setLoading(false);
     }
@@ -489,8 +490,8 @@ export function AppointmentsPage() {
           client_id: clientId,
           service_type_id: form.service_type_id,
           employee_id: assignedEmployeeId,
-          start_time: new Date(form.start).toISOString(),
-          end_time: new Date(endTime).toISOString(),
+          start_time: toNaiveLocalIso(form.start),
+          end_time: toNaiveLocalIso(endTime),
           status: form.status,
           notes: form.notes || undefined,
           ...(form.status === "completed"
