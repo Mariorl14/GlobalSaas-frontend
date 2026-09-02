@@ -53,9 +53,38 @@ type SvcOpt = { id: string; name?: string };
 
 type ViewMode = "day" | "week";
 
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 20;
+const DAY_START_HOUR = 7;
+const DAY_END_HOUR = 22;
 const SLOT_MINUTES = 30;
+
+function slots(startHour: number, endHour: number): { label: string; minutes: number }[] {
+  const out: { label: string; minutes: number }[] = [];
+  for (let m = startHour * 60; m < endHour * 60; m += SLOT_MINUTES) {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    out.push({
+      label: formatClock12h(h, mm),
+      minutes: m,
+    });
+  }
+  return out;
+}
+
+function hourRangeForItems(items: Appointment[]): { startHour: number; endHour: number } {
+  let startHour = DAY_START_HOUR;
+  let endHour = DAY_END_HOUR;
+  for (const a of items) {
+    if (!a.start_time) continue;
+    const startH = Math.floor(appointmentMinutesOfDay(a.start_time) / 60);
+    const endH = a.end_time
+      ? Math.max(startH + 1, Math.ceil(appointmentMinutesOfDay(a.end_time) / 60))
+      : startH + 1;
+    startHour = Math.min(startHour, Math.max(0, startH));
+    endHour = Math.max(endHour, Math.min(24, endH));
+  }
+  if (endHour <= startHour) endHour = startHour + 1;
+  return { startHour, endHour };
+}
 
 function statusBadge(status: string): string {
   const s = status.toLowerCase();
@@ -101,19 +130,6 @@ function mondayOf(d: Date): Date {
 function localDateKey(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function slots(): { label: string; minutes: number }[] {
-  const out: { label: string; minutes: number }[] = [];
-  for (let m = DAY_START_HOUR * 60; m < DAY_END_HOUR * 60; m += SLOT_MINUTES) {
-    const h = Math.floor(m / 60);
-    const mm = m % 60;
-    out.push({
-      label: formatClock12h(h, mm),
-      minutes: m,
-    });
-  }
-  return out;
 }
 
 export function CalendarPage() {
@@ -211,6 +227,10 @@ export function CalendarPage() {
     return items.filter((a) => a.start_time && appointmentLocalDate(a.start_time) === key);
   }, [items, anchor]);
 
+  const { startHour, endHour } = useMemo(() => hourRangeForItems(dayItems), [dayItems]);
+  const slotList = useMemo(() => slots(startHour, endHour), [startHour, endHour]);
+  const pxPerMinute = 1.2;
+
   const patchStatus = async (
     id: string,
     status: string,
@@ -291,9 +311,6 @@ export function CalendarPage() {
           month: "long",
         })
       : `${weekDays[0].toLocaleDateString("es-MX", { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString("es-MX", { day: "numeric", month: "short" })}`;
-
-  const slotList = slots();
-  const pxPerMinute = 1.2;
 
   return (
     <div>
@@ -428,19 +445,19 @@ export function CalendarPage() {
           </div>
           <div
             className="bp-cal-day__grid"
-            style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * 60 * pxPerMinute }}
+            style={{ height: (endHour - startHour) * 60 * pxPerMinute }}
           >
             {slotList.map((s) => (
               <div
                 key={s.label}
                 className="bp-cal-day__line"
-                style={{ top: (s.minutes - DAY_START_HOUR * 60) * pxPerMinute }}
+                style={{ top: (s.minutes - startHour * 60) * pxPerMinute }}
               />
             ))}
             {dayItems.map((a) => {
               const startM = appointmentMinutesOfDay(a.start_time);
               const endM = a.end_time ? appointmentMinutesOfDay(a.end_time) : startM + 30;
-              const top = Math.max(0, (startM - DAY_START_HOUR * 60) * pxPerMinute);
+              const top = Math.max(0, (startM - startHour * 60) * pxPerMinute);
               const height = Math.max(28, (endM - startM) * pxPerMinute - 4);
               return (
                 <button

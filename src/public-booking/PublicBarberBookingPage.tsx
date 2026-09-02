@@ -130,18 +130,23 @@ export function PublicBarberBookingPage() {
   }, [biz, barbers, employeeId]);
 
   useEffect(() => {
-    if (!slug || !serviceId) {
-      setDayHints({});
+    if (step !== 2 || !slug || !serviceId) {
       return;
     }
     const emp = employeeId || undefined;
+    let cancelled = false;
     void fetchCalendarHints(slug, {
       year: calYear,
       month: calMonth,
       service_id: serviceId,
       employee_id: emp,
-    }).then(setDayHints);
-  }, [slug, serviceId, employeeId, calYear, calMonth]);
+    }).then((days) => {
+      if (!cancelled) setDayHints(days);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, slug, serviceId, employeeId, calYear, calMonth]);
 
   useEffect(() => {
     if (!slug || !serviceId || !selectedDate) {

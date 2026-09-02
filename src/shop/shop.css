@@ -2248,7 +2248,8 @@
   background: var(--bp-surface);
   border: 1px solid var(--bp-border);
   border-radius: var(--bp-radius-lg);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: var(--bp-shadow-xs);
 }
 .bp-cal-day__rail { border-right: 1px solid var(--bp-border); background: var(--bp-surface-2); }
