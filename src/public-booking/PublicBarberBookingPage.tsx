@@ -48,6 +48,7 @@ export function PublicBarberBookingPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotStart, setSlotStart] = useState("");
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsEpoch, setSlotsEpoch] = useState(0);
 
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -149,29 +150,55 @@ export function PublicBarberBookingPage() {
   }, [step, slug, serviceId, employeeId, calYear, calMonth]);
 
   useEffect(() => {
+    setSlotStart("");
+  }, [serviceId, employeeId, selectedDate]);
+
+  useEffect(() => {
     if (!slug || !serviceId || !selectedDate) {
       setSlots([]);
-      setSlotStart("");
       return;
     }
     if (!biz?.allow_any_barber && !employeeId) {
       setSlots([]);
       return;
     }
-    setSlotsLoading(true);
+    let cancelled = false;
     const params: { date: string; service_id: string; employee_id?: string } = {
       date: selectedDate,
       service_id: serviceId,
     };
     if (employeeId) params.employee_id = employeeId;
-    void fetchAvailability(slug, params)
-      .then((d) => {
-        setSlots(d.slots);
-        setSlotStart("");
-      })
-      .catch(() => setSlots([]))
-      .finally(() => setSlotsLoading(false));
-  }, [slug, serviceId, employeeId, selectedDate, biz?.allow_any_barber]);
+
+    const load = (showSpinner: boolean) => {
+      if (showSpinner) setSlotsLoading(true);
+      void fetchAvailability(slug, params)
+        .then((d) => {
+          if (cancelled) return;
+          setSlots(d.slots);
+          setSlotStart((prev) => {
+            if (!prev) return prev;
+            return d.slots.some((s) => s.start === prev) ? prev : "";
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setSlots([]);
+        })
+        .finally(() => {
+          if (!cancelled && showSpinner) setSlotsLoading(false);
+        });
+    };
+
+    load(true);
+    const shouldPoll = step >= 2 && step <= 4;
+    const timer = shouldPoll ? window.setInterval(() => load(false), 12_000) : undefined;
+    const onFocus = () => load(false);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [slug, serviceId, employeeId, selectedDate, biz?.allow_any_barber, step, slotsEpoch]);
 
   const selectedService = services.find((s) => s.id === serviceId) ?? null;
   const selectedBarber = barbers.find((b) => b.employee_id === employeeId) ?? null;
@@ -218,7 +245,13 @@ export function PublicBarberBookingPage() {
   };
 
   const handleConfirmBooking = async () => {
-    if (!selectedSlot || !biz) return;
+    if (!biz) return;
+    if (!selectedSlot) {
+      setSubmitErr("Ese horario ya no está disponible. Elige otro.");
+      setStep(2);
+      setSlotsEpoch((n) => n + 1);
+      return;
+    }
     setSubmitErr(null);
     setSubmitting(true);
     try {
@@ -235,14 +268,18 @@ export function PublicBarberBookingPage() {
       });
       setSuccessId(res.appointment_id);
     } catch (e: unknown) {
+      const err = e as {
+        response?: { status?: number; data?: { error?: string } };
+      };
       const msg =
-        typeof e === "object" &&
-        e !== null &&
-        "response" in e &&
-        typeof (e as { response?: { data?: { error?: string } } }).response?.data?.error ===
-          "string"
-          ? (e as { response: { data: { error: string } } }).response.data.error
+        typeof err.response?.data?.error === "string"
+          ? err.response.data.error
           : "No pudimos completar la reserva. Prueba otro horario.";
+      if (err.response?.status === 409) {
+        setStep(2);
+        setSlotStart("");
+        setSlotsEpoch((n) => n + 1);
+      }
       setSubmitErr(msg);
     } finally {
       setSubmitting(false);
