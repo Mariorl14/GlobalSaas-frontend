@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { Menu } from "./components/super-admin/Menu.tsx";
 import type { MenuItem } from "./components/super-admin/Menu.tsx";
@@ -17,6 +17,7 @@ import {
 } from "./components/super-admin/icons.tsx";
 import "./components/super-admin/super-admin.css";
 import { BookingErrorBoundary } from "./public-booking/BookingErrorBoundary.tsx";
+import { prefetchPublicBootstrap } from "./public-booking/bookingApi";
 import { RouteFallback } from "./RouteFallback.tsx";
 import { API_BASE_URL } from "./config";
 
@@ -81,6 +82,19 @@ const Dashboard = lazy(() =>
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
+
+/** Start the shop catalog request in parallel with the booking-page JS chunk. */
+function PublicBookingEntry() {
+  const { businessSlug } = useParams<{ businessSlug: string }>();
+  if (businessSlug) prefetchPublicBootstrap(businessSlug);
+  return (
+    <BookingErrorBoundary>
+      <Lazy>
+        <PublicBarberBookingPage />
+      </Lazy>
+    </BookingErrorBoundary>
+  );
 }
 
 function PostLoginRedirect() {
@@ -572,16 +586,7 @@ function App() {
         />
       </Route>
       <Route path="/dashboard" element={<Navigate to="/super-admin" replace />} />
-      <Route
-        path="/book/:businessSlug"
-        element={
-          <BookingErrorBoundary>
-            <Lazy>
-              <PublicBarberBookingPage />
-            </Lazy>
-          </BookingErrorBoundary>
-        }
-      />
+      <Route path="/book/:businessSlug" element={<PublicBookingEntry />} />
       <Route
         path="/appointment/reschedule/confirm/:token"
         element={

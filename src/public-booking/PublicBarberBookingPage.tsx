@@ -112,6 +112,10 @@ export function PublicBarberBookingPage() {
       setClientAccount(cached);
       setCustomer((prev) => customerFromAccount(cached, prev.notes));
     }
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug || step < 3) return;
     void fetchCustomerMe(slug)
       .then((c) => {
         if (!c) return;
@@ -122,7 +126,7 @@ export function PublicBarberBookingPage() {
         customerSession.clear(slug);
         setClientAccount(null);
       });
-  }, [slug]);
+  }, [slug, step]);
 
   useEffect(() => {
     if (!biz?.allow_any_barber && barbers.length > 0 && !employeeId) {
@@ -189,16 +193,15 @@ export function PublicBarberBookingPage() {
     };
 
     load(true);
-    const shouldPoll = step >= 2 && step <= 4;
-    const timer = shouldPoll ? window.setInterval(() => load(false), 12_000) : undefined;
+    const timer = window.setInterval(() => load(false), 20_000);
     const onFocus = () => load(false);
     window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
-      if (timer) window.clearInterval(timer);
+      window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
     };
-  }, [slug, serviceId, employeeId, selectedDate, biz?.allow_any_barber, step, slotsEpoch]);
+  }, [slug, serviceId, employeeId, selectedDate, biz?.allow_any_barber, slotsEpoch]);
 
   const selectedService = services.find((s) => s.id === serviceId) ?? null;
   const selectedBarber = barbers.find((b) => b.employee_id === employeeId) ?? null;

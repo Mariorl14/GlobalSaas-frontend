@@ -47,11 +47,27 @@ export type PublicBootstrap = {
   barbers: PublicBarber[];
 };
 
+const BOOTSTRAP_TTL_MS = 60_000;
+const bootstrapCache = new Map<string, { at: number; promise: Promise<PublicBootstrap> }>();
+
+export function prefetchPublicBootstrap(slug: string) {
+  if (slug) void fetchPublicBootstrap(slug);
+}
+
 export async function fetchPublicBootstrap(slug: string) {
-  const res = await axios.get<PublicBootstrap>(
-    `${base}/${encodeURIComponent(slug)}/bootstrap`,
-  );
-  return res.data;
+  const now = Date.now();
+  const hit = bootstrapCache.get(slug);
+  if (hit && now - hit.at < BOOTSTRAP_TTL_MS) {
+    return hit.promise;
+  }
+  const promise = axios
+    .get<PublicBootstrap>(`${base}/${encodeURIComponent(slug)}/bootstrap`)
+    .then((res) => res.data);
+  bootstrapCache.set(slug, { at: now, promise });
+  promise.catch(() => {
+    bootstrapCache.delete(slug);
+  });
+  return promise;
 }
 
 export async function fetchPublicBusiness(slug: string) {
