@@ -73,21 +73,13 @@ export async function fetchPublicBarbers(slug: string) {
   return res.data.items;
 }
 
-const noStoreHeaders = {
-  "Cache-Control": "no-cache",
-  Pragma: "no-cache",
-};
-
 export async function fetchAvailability(
   slug: string,
   params: { date: string; service_id: string; employee_id?: string },
 ) {
   const res = await axios.get<{ slots: Slot[]; allow_any_barber: boolean }>(
     `${base}/${encodeURIComponent(slug)}/availability`,
-    {
-      params: { ...params, _t: Date.now() },
-      headers: noStoreHeaders,
-    },
+    { params: { ...params, _t: Date.now() } },
   );
   return res.data;
 }
@@ -98,10 +90,7 @@ export async function fetchCalendarHints(
 ) {
   const res = await axios.get<{ days: Record<string, boolean> }>(
     `${base}/${encodeURIComponent(slug)}/calendar-hints`,
-    {
-      params: { ...params, _t: Date.now() },
-      headers: noStoreHeaders,
-    },
+    { params: { ...params, _t: Date.now() } },
   );
   return res.data.days;
 }
