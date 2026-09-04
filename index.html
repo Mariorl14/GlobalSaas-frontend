@@ -22,7 +22,23 @@
         rel="stylesheet"
       />
     </noscript>
-    <title>frontend</title>
+    <link rel="preconnect" href="%VITE_API_BASE_URL%" />
+    <title>Reserva</title>
+    <script>
+      (function () {
+        var api = "%VITE_API_BASE_URL%".replace(/\/$/, "");
+        if (!api || api.indexOf("%VITE_") !== -1) return;
+        var m = location.pathname.match(/^\/book\/([A-Za-z0-9\-]+)/);
+        if (!m) return;
+        window.__BOOKING_BOOTSTRAP_SLUG__ = m[1];
+        window.__BOOKING_BOOTSTRAP__ = fetch(
+          api + "/api/public/booking/" + encodeURIComponent(m[1]) + "/bootstrap"
+        ).then(function (r) {
+          if (!r.ok) throw new Error("bootstrap " + r.status);
+          return r.json();
+        });
+      })();
+    </script>
   </head>
   <body class="notranslate" translate="no">
     <div id="root"></div>

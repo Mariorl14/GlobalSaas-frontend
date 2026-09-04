@@ -1,32 +1,33 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { installDomTranslateGuard } from './domTranslateGuard'
-import './api/http'
-import './index.css'
-import App from './App.tsx'
-import { API_BASE_URL } from './config'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { installDomTranslateGuard } from "./domTranslateGuard";
 
-installDomTranslateGuard()
+installDomTranslateGuard();
 
-try {
-  const origin = new URL(API_BASE_URL, window.location.origin).origin
-  if (origin && origin !== window.location.origin) {
-    const link = document.createElement('link')
-    link.rel = 'preconnect'
-    link.href = origin
-    document.head.appendChild(link)
-  }
-} catch {
-  /* ignore invalid API_BASE_URL */
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error("Missing #root");
 }
 
-installDomTranslateGuard()
+const path = window.location.pathname;
+const isPublicCustomer =
+  path.startsWith("/book/") || path.startsWith("/appointment/");
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-)
+if (isPublicCustomer) {
+  void import("./BookingApp").then(({ mountPublicBooking }) => {
+    mountPublicBooking(rootEl);
+  });
+} else {
+  void Promise.all([import("./App.tsx"), import("./api/http"), import("./index.css")]).then(
+    ([{ default: App }]) => {
+      createRoot(rootEl).render(
+        <StrictMode>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </StrictMode>,
+      );
+    },
+  );
+}

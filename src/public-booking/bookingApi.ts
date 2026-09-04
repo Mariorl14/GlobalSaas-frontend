@@ -47,8 +47,23 @@ export type PublicBootstrap = {
   barbers: PublicBarber[];
 };
 
+declare global {
+  interface Window {
+    __BOOKING_BOOTSTRAP_SLUG__?: string;
+    __BOOKING_BOOTSTRAP__?: Promise<PublicBootstrap>;
+  }
+}
+
 const BOOTSTRAP_TTL_MS = 60_000;
 const bootstrapCache = new Map<string, { at: number; promise: Promise<PublicBootstrap> }>();
+
+function cacheBootstrap(slug: string, promise: Promise<PublicBootstrap>) {
+  bootstrapCache.set(slug, { at: Date.now(), promise });
+  promise.catch(() => {
+    bootstrapCache.delete(slug);
+  });
+  return promise;
+}
 
 export function prefetchPublicBootstrap(slug: string) {
   if (slug) void fetchPublicBootstrap(slug);
@@ -56,6 +71,10 @@ export function prefetchPublicBootstrap(slug: string) {
 
 export async function fetchPublicBootstrap(slug: string) {
   const now = Date.now();
+  const early = window.__BOOKING_BOOTSTRAP__;
+  if (early && window.__BOOKING_BOOTSTRAP_SLUG__ === slug) {
+    return cacheBootstrap(slug, early);
+  }
   const hit = bootstrapCache.get(slug);
   if (hit && now - hit.at < BOOTSTRAP_TTL_MS) {
     return hit.promise;
@@ -63,11 +82,7 @@ export async function fetchPublicBootstrap(slug: string) {
   const promise = axios
     .get<PublicBootstrap>(`${base}/${encodeURIComponent(slug)}/bootstrap`)
     .then((res) => res.data);
-  bootstrapCache.set(slug, { at: now, promise });
-  promise.catch(() => {
-    bootstrapCache.delete(slug);
-  });
-  return promise;
+  return cacheBootstrap(slug, promise);
 }
 
 export async function fetchPublicBusiness(slug: string) {

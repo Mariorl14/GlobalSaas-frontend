@@ -68,6 +68,7 @@ export function PublicBarberBookingPage() {
   const [successId, setSuccessId] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [slowHint, setSlowHint] = useState(false);
 
   const minDate = useMemo(() => todayIsoLocal(), []);
 
@@ -75,9 +76,6 @@ export function PublicBarberBookingPage() {
     if (!slug) return;
     setLoadErr(null);
     setCatalogLoading(true);
-    setBiz(null);
-    setServices([]);
-    setBarbers([]);
     try {
       const data = await fetchPublicBootstrap(slug);
       setBiz(data.business);
@@ -104,6 +102,15 @@ export function PublicBarberBookingPage() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (biz || loadErr) {
+      setSlowHint(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSlowHint(true), 3500);
+    return () => window.clearTimeout(t);
+  }, [biz, loadErr]);
 
   useEffect(() => {
     if (!slug) return;
@@ -307,8 +314,20 @@ export function PublicBarberBookingPage() {
 
   if (!biz) {
     return (
-      <div className="pb-root pb-loading-screen">
-        {catalogLoading ? "Cargando…" : null}
+      <div className="pb-root notranslate" translate="no">
+        <div className="pb-inner">
+          <header className="pb-hero">
+            <p className="pb-hero-kicker">Reserva en línea</p>
+            <h1 className="pb-hero-title">Cargando la barbería…</h1>
+          </header>
+          <div className="pb-card">
+            <p className="pb-muted" style={{ margin: 0 }}>
+              {slowHint
+                ? "El servidor está despertando. Esto puede tardar unos segundos la primera vez."
+                : "Preparando servicios y horarios…"}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
