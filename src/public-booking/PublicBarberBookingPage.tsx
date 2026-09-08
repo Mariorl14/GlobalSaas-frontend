@@ -5,10 +5,7 @@ import {
   fetchAvailability,
   fetchCalendarHints,
   fetchCustomerMe,
-  fetchPublicBarbers,
   fetchPublicBootstrap,
-  fetchPublicBusiness,
-  fetchPublicServices,
   prefetchCalendarHints,
   submitPublicBooking,
   type PublicBarber,
@@ -81,16 +78,17 @@ export function PublicBarberBookingPage() {
       setBiz(data.business);
       setServices(data.services);
       setBarbers(data.barbers);
-    } catch {
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setLoadErr("No encontramos esta barbería o el enlace no es válido.");
+        return;
+      }
       try {
-        const b = await fetchPublicBusiness(slug);
-        setBiz(b);
-        const [s, bar] = await Promise.all([
-          fetchPublicServices(slug),
-          fetchPublicBarbers(slug),
-        ]);
-        setServices(s);
-        setBarbers(bar);
+        const data = await fetchPublicBootstrap(slug);
+        setBiz(data.business);
+        setServices(data.services);
+        setBarbers(data.barbers);
       } catch {
         setLoadErr("No encontramos esta barbería o el enlace no es válido.");
       }
@@ -187,7 +185,6 @@ export function PublicBarberBookingPage() {
       if (!showSpinner && now - lastLoad < 8000) return;
       lastLoad = now;
       if (showSpinner) {
-        setSlots([]);
         setSlotsLoading(true);
       }
       void fetchAvailability(slug, params)
@@ -208,7 +205,6 @@ export function PublicBarberBookingPage() {
     };
 
     load(true);
-    const timer = window.setInterval(() => load(false), 20_000);
     const onFocus = () => load(false);
     const onVisible = () => {
       if (!document.hidden) load(false);
@@ -217,7 +213,6 @@ export function PublicBarberBookingPage() {
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };

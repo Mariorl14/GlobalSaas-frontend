@@ -13,7 +13,7 @@ import {
 import { staffLabel } from "../staffLabel";
 import { staffSwatch } from "../staffColors";
 import { PaymentMethodField } from "../PaymentMethodField";
-import { TipAmountField, parseTipInput } from "../TipAmountField";
+import { TipAmountField, parseTipInput, tipToInput } from "../TipAmountField";
 import {
   AppointmentCancelDialog,
   AppointmentDeleteDialog,
@@ -23,7 +23,6 @@ import {
 import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
-import { moneyExact } from "../../money";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
 import { dateToNaiveLocalIso, appointmentLocalDate, appointmentMinutesOfDay, toDateTimeLocalValue, toNaiveLocalIso } from "../appointmentDateTime";
 
@@ -148,6 +147,7 @@ export function CalendarPage() {
   const [completePayOpen, setCompletePayOpen] = useState(false);
   const [completePay, setCompletePay] = useState("");
   const [completeTip, setCompleteTip] = useState("");
+  const [selectedTip, setSelectedTip] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionDialog, setActionDialog] = useState<"reschedule" | "cancel" | "delete" | null>(null);
 
@@ -208,6 +208,14 @@ export function CalendarPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!selected) {
+      setSelectedTip("");
+      return;
+    }
+    setSelectedTip(tipToInput(selected.tip_amount));
+  }, [selected?.id, selected?.tip_amount]);
 
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? "Servicio";
   const rosterIds = useMemo(() => staff.map((s) => s.employee_id), [staff]);
@@ -297,6 +305,13 @@ export function CalendarPage() {
 
   const reschedule = async () => {
     if (!selected?.start_time || !selected.end_time) return;
+    const st = selected.status.toLowerCase();
+    const canceled = st === "canceled" || st === "cancelled" || st === "no_show";
+    const tip = parseTipInput(selectedTip);
+    if (!canceled && !tip.ok) {
+      setErr(tip.error);
+      return;
+    }
     setSaving(true);
     try {
       await axios.put(`${API_BASE_URL}/api/shop/appointments/${selected.id}`, {
@@ -304,11 +319,14 @@ export function CalendarPage() {
         end_time: toNaiveLocalIso(toDateTimeLocalValue(selected.end_time)),
         status: selected.status,
         notes: selected.notes,
+        ...(!canceled && tip.ok ? { tip_amount: tip.amount } : {}),
       });
       await load();
-      setSelected(null);
+      setSelected((prev) =>
+        prev && prev.id === selected.id && tip.ok ? { ...prev, tip_amount: tip.amount } : prev,
+      );
     } catch {
-      setErr("No se pudo reprogramar.");
+      setErr("No se pudo guardar.");
     } finally {
       setSaving(false);
     }
@@ -588,11 +606,19 @@ export function CalendarPage() {
                 <label className="bp-label">Barbero</label>
                 <div>{resolveStaffLabel(selected.employee_id)}</div>
               </div>
-              {selected.status === "completed" && Number(selected.tip_amount) > 0 ? (
-                <div className="bp-field">
-                  <label className="bp-label">Propina</label>
-                  <div>{moneyExact(Number(selected.tip_amount))}</div>
-                </div>
+              {selected.status !== "canceled" &&
+              selected.status !== "cancelled" &&
+              selected.status !== "no_show" ? (
+                <TipAmountField
+                  id="cal-detail-tip"
+                  value={selectedTip}
+                  onChange={setSelectedTip}
+                  servicePrice={
+                    selected.service_type_id
+                      ? Number(services.find((s) => s.id === selected.service_type_id)?.price ?? 0)
+                      : null
+                  }
+                />
               ) : null}
               <DateTimeLocalFields
                 dateId="cal-start-date"
@@ -633,7 +659,13 @@ export function CalendarPage() {
               <button
                 type="button"
                 className="bp-btn bp-btn--secondary bp-btn--sm"
-                disabled={saving}
+                disabled={
+                  saving ||
+                  selected.status === "completed" ||
+                  selected.status === "canceled" ||
+                  selected.status === "cancelled" ||
+                  selected.status === "no_show"
+                }
                 onClick={() => openCompletePay()}
               >
                 Completar

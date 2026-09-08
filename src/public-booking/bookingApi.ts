@@ -4,6 +4,10 @@ import { customerSession, type PublicClient } from "./customerSession";
 
 const base = `${API_BASE_URL}/api/public/booking`;
 
+const bookingHttp = axios.create({
+  timeout: 12_000,
+});
+
 function customerHeaders(slug: string) {
   const token = customerSession.getToken(slug);
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -55,7 +59,9 @@ declare global {
 }
 
 const BOOTSTRAP_TTL_MS = 60_000;
+const HINTS_TTL_MS = 45_000;
 const bootstrapCache = new Map<string, { at: number; promise: Promise<PublicBootstrap> }>();
+const hintsCache = new Map<string, { at: number; days: Record<string, boolean> }>();
 const inflightAvailability = new Map<
   string,
   Promise<{ slots: Slot[]; allow_any_barber: boolean }>
@@ -84,26 +90,26 @@ export async function fetchPublicBootstrap(slug: string) {
   if (hit && now - hit.at < BOOTSTRAP_TTL_MS) {
     return hit.promise;
   }
-  const promise = axios
+  const promise = bookingHttp
     .get<PublicBootstrap>(`${base}/${encodeURIComponent(slug)}/bootstrap`)
     .then((res) => res.data);
   return cacheBootstrap(slug, promise);
 }
 
 export async function fetchPublicBusiness(slug: string) {
-  const res = await axios.get<PublicBusiness>(`${base}/${encodeURIComponent(slug)}`);
+  const res = await bookingHttp.get<PublicBusiness>(`${base}/${encodeURIComponent(slug)}`);
   return res.data;
 }
 
 export async function fetchPublicServices(slug: string) {
-  const res = await axios.get<{ items: PublicService[] }>(
+  const res = await bookingHttp.get<{ items: PublicService[] }>(
     `${base}/${encodeURIComponent(slug)}/services`,
   );
   return res.data.items;
 }
 
 export async function fetchPublicBarbers(slug: string) {
-  const res = await axios.get<{ items: PublicBarber[] }>(
+  const res = await bookingHttp.get<{ items: PublicBarber[] }>(
     `${base}/${encodeURIComponent(slug)}/barbers`,
   );
   return res.data.items;
@@ -116,7 +122,7 @@ export async function fetchAvailability(
   const key = `${slug}|${params.date}|${params.service_id}|${params.employee_id || ""}`;
   const existing = inflightAvailability.get(key);
   if (existing) return existing;
-  const promise = axios
+  const promise = bookingHttp
     .get<{ slots: Slot[]; allow_any_barber: boolean }>(
       `${base}/${encodeURIComponent(slug)}/availability`,
       { params },
@@ -141,14 +147,22 @@ export async function fetchCalendarHints(
   params: { year: number; month: number; service_id: string; employee_id?: string },
 ) {
   const key = `${slug}|${params.year}|${params.month}|${params.service_id}|${params.employee_id || ""}`;
+  const now = Date.now();
+  const cached = hintsCache.get(key);
+  if (cached && now - cached.at < HINTS_TTL_MS) {
+    return cached.days;
+  }
   const existing = inflightHints.get(key);
   if (existing) return existing;
-  const promise = axios
+  const promise = bookingHttp
     .get<{ days: Record<string, boolean> }>(
       `${base}/${encodeURIComponent(slug)}/calendar-hints`,
       { params },
     )
-    .then((res) => res.data.days)
+    .then((res) => {
+      hintsCache.set(key, { at: Date.now(), days: res.data.days });
+      return res.data.days;
+    })
     .finally(() => {
       if (inflightHints.get(key) === promise) inflightHints.delete(key);
     });
@@ -167,7 +181,7 @@ export async function customerRegister(
     email?: string;
   },
 ) {
-  const res = await axios.post<{ access_token: string; client: PublicClient }>(
+  const res = await bookingHttp.post<{ access_token: string; client: PublicClient }>(
     `${base}/${encodeURIComponent(slug)}/auth/register`,
     body,
   );
@@ -179,7 +193,7 @@ export async function customerSignIn(
   slug: string,
   body: { username: string; password: string },
 ) {
-  const res = await axios.post<{ access_token: string; client: PublicClient }>(
+  const res = await bookingHttp.post<{ access_token: string; client: PublicClient }>(
     `${base}/${encodeURIComponent(slug)}/auth/signin`,
     body,
   );
@@ -190,7 +204,7 @@ export async function customerSignIn(
 export async function fetchCustomerMe(slug: string) {
   const token = customerSession.getToken(slug);
   if (!token) return null;
-  const res = await axios.get<{ client: PublicClient }>(
+  const res = await bookingHttp.get<{ client: PublicClient }>(
     `${base}/${encodeURIComponent(slug)}/auth/me`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
@@ -212,7 +226,7 @@ export async function submitPublicBooking(
     notes?: string;
   },
 ) {
-  const res = await axios.post<{ appointment_id: string; message: string }>(
+  const res = await bookingHttp.post<{ appointment_id: string; message: string }>(
     `${base}/${encodeURIComponent(slug)}/bookings`,
     body,
     { headers: customerHeaders(slug) },

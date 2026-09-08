@@ -210,6 +210,8 @@ export function AppointmentsPage() {
   } | null>(null);
   const [completePay, setCompletePay] = useState("");
   const [completeTip, setCompleteTip] = useState("");
+  const [tipTarget, setTipTarget] = useState<Appointment | null>(null);
+  const [tipValue, setTipValue] = useState("");
   const [actionTarget, setActionTarget] = useState<{
     kind: "reschedule" | "cancel";
     appointment: Appointment;
@@ -579,7 +581,9 @@ export function AppointmentsPage() {
         ...(form.status === "completed" && form.payment_method
           ? { payment_method: form.payment_method }
           : {}),
-        ...(form.status === "completed" ? { tip_amount: formTip.amount } : {}),
+        ...(["canceled", "cancelled", "no_show"].includes(form.status)
+          ? {}
+          : { tip_amount: formTip.amount }),
       };
 
       if (isEditing && editId) {
@@ -639,9 +643,13 @@ export function AppointmentsPage() {
   };
 
   const requestStatusChange = (id: string, status: string) => {
+    const a = items.find((x) => x.id === id);
     if (status === "completed") {
-      const a = items.find((x) => x.id === id);
       if (!a?.start_time || !a.end_time) return;
+      if (a.status === "completed") {
+        openTipEditor(a);
+        return;
+      }
       setCompleteTarget({
         id,
         start_time: a.start_time,
@@ -649,7 +657,7 @@ export function AppointmentsPage() {
         service_type_id: a.service_type_id,
       });
       setCompletePay("");
-      setCompleteTip("");
+      setCompleteTip(tipToInput(a.tip_amount));
       setErr(null);
       return;
     }
@@ -661,6 +669,38 @@ export function AppointmentsPage() {
       return;
     }
     void patchStatus(id, status);
+  };
+
+  const openTipEditor = (a: Appointment) => {
+    setTipTarget(a);
+    setTipValue(tipToInput(a.tip_amount));
+    setErr(null);
+  };
+
+  const confirmSaveTip = async () => {
+    if (!tipTarget) return;
+    const tip = parseTipInput(tipValue);
+    if (!tip.ok) {
+      setErr(tip.error);
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.put(`${API_BASE_URL}/api/shop/appointments/${tipTarget.id}`, {
+        tip_amount: tip.amount,
+      });
+      setTipTarget(null);
+      setTipValue("");
+      await load();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
+          ? (e.response.data as { error?: string }).error
+          : null;
+      setErr(msg ?? "No se pudo guardar la propina.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const confirmComplete = async () => {
@@ -902,7 +942,7 @@ export function AppointmentsPage() {
                         <div className="bp-appt-card__client">{a.client_name}</div>
                         <div className="bp-appt-card__meta">
                           {serviceName(a.service_type_id)} · {resolveStaffLabel(a.employee_id)}
-                          {a.status === "completed" && Number(a.tip_amount) > 0
+                          {Number(a.tip_amount) > 0
                             ? ` · Propina ${moneyExact(Number(a.tip_amount))}`
                             : ""}
                           {a.notes ? ` · ${a.notes}` : ""}
@@ -940,6 +980,17 @@ export function AppointmentsPage() {
                         <IconEdit />
                         Editar
                       </button>
+                      {a.status !== "canceled" &&
+                      a.status !== "cancelled" &&
+                      a.status !== "no_show" ? (
+                        <button
+                          type="button"
+                          className="bp-btn bp-btn--secondary bp-btn--sm"
+                          onClick={() => openTipEditor(a)}
+                        >
+                          Propina
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="bp-btn bp-btn--secondary bp-btn--sm"
@@ -1388,7 +1439,7 @@ export function AppointmentsPage() {
                   onChange={(v) => setForm((f) => ({ ...f, payment_method: v }))}
                 />
               ) : null}
-              {form.status === "completed" ? (
+              {["canceled", "cancelled", "no_show"].includes(form.status) ? null : (
                 <TipAmountField
                   id="form-tip"
                   value={form.tip_amount}
@@ -1399,7 +1450,7 @@ export function AppointmentsPage() {
                       : null
                   }
                 />
-              ) : null}
+              )}
               <div className="bp-field">
                 <label className="bp-label">Notas</label>
                 <input
@@ -1511,6 +1562,60 @@ export function AppointmentsPage() {
                 disabled={saving}
               >
                 {saving ? "Guardando…" : "Confirmar pago"}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {tipTarget ? (
+        <>
+          <button
+            type="button"
+            className="bp-panel__overlay"
+            aria-label="Cerrar"
+            onClick={() => setTipTarget(null)}
+          />
+          <div className="bp-panel" role="dialog" aria-modal="true">
+            <div className="bp-panel__header">
+              <div>
+                <h2 className="bp-panel__title">Propina</h2>
+                <p className="bp-panel__subtitle">
+                  {tipTarget.client_name} — opcional. No cambia el precio del servicio ni la comisión.
+                </p>
+              </div>
+              <button type="button" className="bp-icon-btn" onClick={() => setTipTarget(null)}>
+                <IconClose />
+              </button>
+            </div>
+            <div className="bp-panel__body">
+              <TipAmountField
+                id="list-tip"
+                value={tipValue}
+                onChange={setTipValue}
+                servicePrice={
+                  tipTarget.service_type_id
+                    ? Number(services.find((s) => s.id === tipTarget.service_type_id)?.price ?? 0)
+                    : null
+                }
+              />
+            </div>
+            <div className="bp-panel__footer">
+              <button
+                type="button"
+                className="bp-btn bp-btn--secondary"
+                onClick={() => setTipTarget(null)}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="bp-btn bp-btn--primary"
+                onClick={() => void confirmSaveTip()}
+                disabled={saving}
+              >
+                {saving ? "Guardando…" : "Guardar propina"}
               </button>
             </div>
           </div>
