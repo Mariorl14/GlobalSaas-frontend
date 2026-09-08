@@ -8,27 +8,36 @@
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap"
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap"
-        rel="stylesheet"
-      />
-    </noscript>
     <link rel="preconnect" href="%VITE_API_BASE_URL%" />
     <title>Reserva</title>
     <script>
       (function () {
+        var path = location.pathname;
+        var isPublicCustomer =
+          path.indexOf("/book/") === 0 || path.indexOf("/appointment/") === 0;
+        if (!isPublicCustomer) {
+          var pre = document.createElement("link");
+          pre.rel = "preconnect";
+          pre.href = "https://fonts.googleapis.com";
+          document.head.appendChild(pre);
+          var pre2 = document.createElement("link");
+          pre2.rel = "preconnect";
+          pre2.href = "https://fonts.gstatic.com";
+          pre2.crossOrigin = "anonymous";
+          document.head.appendChild(pre2);
+          var font = document.createElement("link");
+          font.rel = "stylesheet";
+          font.href =
+            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap";
+          font.media = "print";
+          font.onload = function () {
+            font.media = "all";
+          };
+          document.head.appendChild(font);
+        }
         var api = "%VITE_API_BASE_URL%".replace(/\/$/, "");
         if (!api || api.indexOf("%VITE_") !== -1) return;
-        var m = location.pathname.match(/^\/book\/([A-Za-z0-9\-]+)/);
+        var m = path.match(/^\/book\/([A-Za-z0-9\-]+)/);
         if (!m) return;
         window.__BOOKING_BOOTSTRAP_SLUG__ = m[1];
         window.__BOOKING_BOOTSTRAP__ = fetch(

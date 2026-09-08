@@ -15,6 +15,7 @@ import {
 import { playAppointmentChime, unlockShopAudio } from "../sound";
 import { staffLabel } from "../staffLabel";
 import { PaymentMethodField } from "../PaymentMethodField";
+import { TipAmountField, parseTipInput, tipToInput } from "../TipAmountField";
 import {
   AppointmentCancelDialog,
   AppointmentDeleteDialog,
@@ -49,6 +50,7 @@ type Appointment = {
   status: string;
   notes: string | null;
   source?: string | null;
+  tip_amount?: number;
 };
 
 type SvcOpt = Opt & { duration?: number; price?: number };
@@ -188,6 +190,7 @@ export function AppointmentsPage() {
     service_type_id: "",
     employee_id: "",
     payment_method: "",
+    tip_amount: "",
     served_date: todayLocalDate(),
     served_time: "",
   });
@@ -203,8 +206,10 @@ export function AppointmentsPage() {
     id: string;
     start_time: string;
     end_time: string;
+    service_type_id: string;
   } | null>(null);
   const [completePay, setCompletePay] = useState("");
+  const [completeTip, setCompleteTip] = useState("");
   const [actionTarget, setActionTarget] = useState<{
     kind: "reschedule" | "cancel";
     appointment: Appointment;
@@ -220,6 +225,7 @@ export function AppointmentsPage() {
     status: "scheduled",
     notes: "",
     payment_method: "",
+    tip_amount: "",
   });
 
   const activeStaff = useMemo(
@@ -287,6 +293,7 @@ export function AppointmentsPage() {
       service_type_id: "",
       employee_id: staffOnly ? myEmployeeId : "",
       payment_method: "",
+      tip_amount: "",
       served_date: todayLocalDate(),
       served_time: "",
     });
@@ -374,6 +381,11 @@ export function AppointmentsPage() {
       setErr("Selecciona el método de pago.");
       return;
     }
+    const walkInTip = parseTipInput(walkIn.tip_amount);
+    if (!walkInTip.ok) {
+      setErr(walkInTip.error);
+      return;
+    }
     if (!walkIn.served_date || !walkIn.served_time) {
       setErr("Selecciona el día y la hora atendida.");
       return;
@@ -390,6 +402,7 @@ export function AppointmentsPage() {
           service_type_id: walkIn.service_type_id,
           employee_id: assignedEmployeeId,
           payment_method: walkIn.payment_method,
+          tip_amount: walkInTip.amount,
           start_time: startTime,
         },
       );
@@ -423,6 +436,7 @@ export function AppointmentsPage() {
       status: "scheduled",
       notes: "",
       payment_method: "",
+      tip_amount: "",
     });
     setClientMode("existing");
     setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
@@ -442,6 +456,7 @@ export function AppointmentsPage() {
       status: a.status,
       notes: a.notes ?? "",
       payment_method: "",
+      tip_amount: tipToInput(a.tip_amount),
     });
     setNewClient({ first_name: "", last_name: "", phone: "", email: "" });
     setPanelOpen(true);
@@ -519,6 +534,12 @@ export function AppointmentsPage() {
       return;
     }
 
+    const formTip = parseTipInput(form.tip_amount);
+    if (!formTip.ok) {
+      setErr(formTip.error);
+      return;
+    }
+
     if (!isEditing && clientMode === "new") {
       if (!newClient.first_name.trim()) {
         setErr("Para un cliente nuevo indica al menos el nombre.");
@@ -558,6 +579,7 @@ export function AppointmentsPage() {
         ...(form.status === "completed" && form.payment_method
           ? { payment_method: form.payment_method }
           : {}),
+        ...(form.status === "completed" ? { tip_amount: formTip.amount } : {}),
       };
 
       if (isEditing && editId) {
@@ -624,8 +646,10 @@ export function AppointmentsPage() {
         id,
         start_time: a.start_time,
         end_time: a.end_time,
+        service_type_id: a.service_type_id,
       });
       setCompletePay("");
+      setCompleteTip("");
       setErr(null);
       return;
     }
@@ -645,6 +669,11 @@ export function AppointmentsPage() {
       setErr("Selecciona el método de pago.");
       return;
     }
+    const tip = parseTipInput(completeTip);
+    if (!tip.ok) {
+      setErr(tip.error);
+      return;
+    }
     setSaving(true);
     try {
       await axios.put(`${API_BASE_URL}/api/shop/appointments/${completeTarget.id}`, {
@@ -652,9 +681,11 @@ export function AppointmentsPage() {
         start_time: completeTarget.start_time,
         end_time: completeTarget.end_time,
         payment_method: completePay,
+        tip_amount: tip.amount,
       });
       setCompleteTarget(null);
       setCompletePay("");
+      setCompleteTip("");
       await load();
     } catch (e: unknown) {
       const msg =
@@ -871,6 +902,9 @@ export function AppointmentsPage() {
                         <div className="bp-appt-card__client">{a.client_name}</div>
                         <div className="bp-appt-card__meta">
                           {serviceName(a.service_type_id)} · {resolveStaffLabel(a.employee_id)}
+                          {a.status === "completed" && Number(a.tip_amount) > 0
+                            ? ` · Propina ${moneyExact(Number(a.tip_amount))}`
+                            : ""}
                           {a.notes ? ` · ${a.notes}` : ""}
                         </div>
                       </div>
@@ -1075,6 +1109,16 @@ export function AppointmentsPage() {
               <PaymentMethodField
                 value={walkIn.payment_method}
                 onChange={(v) => setWalkIn((f) => ({ ...f, payment_method: v }))}
+              />
+              <TipAmountField
+                id="walkin-tip"
+                value={walkIn.tip_amount}
+                onChange={(v) => setWalkIn((f) => ({ ...f, tip_amount: v }))}
+                servicePrice={
+                  walkIn.service_type_id
+                    ? Number(services.find((s) => s.id === walkIn.service_type_id)?.price ?? 0)
+                    : null
+                }
               />
               {walkIn.service_type_id ? (
                 <p className="bp-hint">
@@ -1344,6 +1388,18 @@ export function AppointmentsPage() {
                   onChange={(v) => setForm((f) => ({ ...f, payment_method: v }))}
                 />
               ) : null}
+              {form.status === "completed" ? (
+                <TipAmountField
+                  id="form-tip"
+                  value={form.tip_amount}
+                  onChange={(v) => setForm((f) => ({ ...f, tip_amount: v }))}
+                  servicePrice={
+                    form.service_type_id
+                      ? Number(services.find((s) => s.id === form.service_type_id)?.price ?? 0)
+                      : null
+                  }
+                />
+              ) : null}
               <div className="bp-field">
                 <label className="bp-label">Notas</label>
                 <input
@@ -1394,6 +1450,7 @@ export function AppointmentsPage() {
             onClick={() => {
               setCompleteTarget(null);
               setCompletePay("");
+              setCompleteTip("");
             }}
           />
           <div className="bp-panel" role="dialog" aria-modal="true">
@@ -1410,6 +1467,7 @@ export function AppointmentsPage() {
                 onClick={() => {
                   setCompleteTarget(null);
                   setCompletePay("");
+                  setCompleteTip("");
                 }}
               >
                 <IconClose />
@@ -1420,6 +1478,18 @@ export function AppointmentsPage() {
                 value={completePay}
                 onChange={(v) => setCompletePay(v)}
               />
+              <TipAmountField
+                id="complete-tip"
+                value={completeTip}
+                onChange={setCompleteTip}
+                servicePrice={
+                  completeTarget.service_type_id
+                    ? Number(
+                        services.find((s) => s.id === completeTarget.service_type_id)?.price ?? 0,
+                      )
+                    : null
+                }
+              />
             </div>
             <div className="bp-panel__footer">
               <button
@@ -1428,6 +1498,7 @@ export function AppointmentsPage() {
                 onClick={() => {
                   setCompleteTarget(null);
                   setCompletePay("");
+                  setCompleteTip("");
                 }}
                 disabled={saving}
               >

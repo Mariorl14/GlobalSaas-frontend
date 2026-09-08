@@ -1,8 +1,16 @@
 /* Public barber booking — premium client UI (global class prefix: pb-) */
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap");
+
+html,
+body,
+#root {
+  margin: 0;
+  background-color: #ffffff;
+  color: #0f172a;
+  color-scheme: light;
+}
 
 .pb-root {
-  --pb-font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pb-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --pb-ink: #0f172a;
   --pb-ink-muted: #475569;
   --pb-subtle: #64748b;
@@ -23,6 +31,7 @@
   background-color: var(--pb-canvas);
   color: var(--pb-ink);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .pb-root button {
@@ -592,6 +601,11 @@
   max-width: 36rem;
 }
 
+.pb-slot-grid--busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .pb-slot-btn {
   display: block;
   box-sizing: border-box;
@@ -736,6 +750,7 @@
 /* Success */
 .pb-success-wrap {
   min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 45%, #fff 100%);
   padding: 2rem 1rem 3rem;
   display: flex;
@@ -802,6 +817,7 @@
 /* Error / loading states */
 .pb-state-center {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;

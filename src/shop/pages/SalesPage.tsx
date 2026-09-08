@@ -26,6 +26,7 @@ type Sale = {
   subtotal: number;
   discount: number;
   tax: number;
+  tip_amount?: number;
   total: number;
   payment_method: string | null;
   status: string;
@@ -744,6 +745,9 @@ export function SalesPage() {
               <div style={{ marginTop: 16, textAlign: "right" }}>
                 <div className="bp-cell-muted">Subtotal {moneyExact(detail.subtotal)}</div>
                 <div className="bp-cell-muted">Descuento {moneyExact(detail.discount)}</div>
+                {Number(detail.tip_amount) > 0 ? (
+                  <div className="bp-cell-muted">Propina {moneyExact(detail.tip_amount)}</div>
+                ) : null}
                 <strong style={{ fontSize: 22 }}>{moneyExact(detail.total)}</strong>
               </div>
             </div>

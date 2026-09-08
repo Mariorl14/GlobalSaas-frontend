@@ -9,6 +9,7 @@ import {
   fetchPublicBootstrap,
   fetchPublicBusiness,
   fetchPublicServices,
+  prefetchCalendarHints,
   submitPublicBooking,
   type PublicBarber,
   type PublicBusiness,
@@ -50,9 +51,8 @@ export function PublicBarberBookingPage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsEpoch, setSlotsEpoch] = useState(0);
 
-  const now = new Date();
-  const [calYear, setCalYear] = useState(now.getFullYear());
-  const [calMonth, setCalMonth] = useState(now.getMonth() + 1);
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth() + 1);
   const [dayHints, setDayHints] = useState<Record<string, boolean>>({});
 
   const [customer, setCustomer] = useState<CustomerFormValues>({
@@ -179,9 +179,17 @@ export function PublicBarberBookingPage() {
       service_id: serviceId,
     };
     if (employeeId) params.employee_id = employeeId;
+    let lastLoad = 0;
 
     const load = (showSpinner: boolean) => {
-      if (showSpinner) setSlotsLoading(true);
+      if (typeof document !== "undefined" && document.hidden && !showSpinner) return;
+      const now = Date.now();
+      if (!showSpinner && now - lastLoad < 8000) return;
+      lastLoad = now;
+      if (showSpinner) {
+        setSlots([]);
+        setSlotsLoading(true);
+      }
       void fetchAvailability(slug, params)
         .then((d) => {
           if (cancelled) return;
@@ -202,11 +210,16 @@ export function PublicBarberBookingPage() {
     load(true);
     const timer = window.setInterval(() => load(false), 20_000);
     const onFocus = () => load(false);
+    const onVisible = () => {
+      if (!document.hidden) load(false);
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [slug, serviceId, employeeId, selectedDate, biz?.allow_any_barber, slotsEpoch]);
 
@@ -349,7 +362,14 @@ export function PublicBarberBookingPage() {
           <p className="pb-hero-kicker">Reserva en línea</p>
           <div className="pb-hero-row">
             {mediaUrl(biz.logo_url) ? (
-              <img className="pb-hero-logo" src={mediaUrl(biz.logo_url) ?? ""} alt="" />
+              <img
+                className="pb-hero-logo"
+                src={mediaUrl(biz.logo_url) ?? ""}
+                alt=""
+                width={72}
+                height={72}
+                decoding="async"
+              />
             ) : (
               <div className="pb-hero-logo-fallback" aria-hidden />
             )}
@@ -409,7 +429,15 @@ export function PublicBarberBookingPage() {
                       className="pb-btn pb-btn-primary"
                       style={{ alignSelf: "flex-start" }}
                       disabled={!serviceId || (!biz.allow_any_barber && !employeeId)}
-                      onClick={() => setStep(2)}
+                      onClick={() => {
+                        prefetchCalendarHints(slug, {
+                          year: calYear,
+                          month: calMonth,
+                          service_id: serviceId,
+                          employee_id: employeeId || undefined,
+                        });
+                        setStep(2);
+                      }}
                     >
                       Continuar
                     </button>

@@ -13,6 +13,7 @@ import {
 import { staffLabel } from "../staffLabel";
 import { staffSwatch } from "../staffColors";
 import { PaymentMethodField } from "../PaymentMethodField";
+import { TipAmountField, parseTipInput } from "../TipAmountField";
 import {
   AppointmentCancelDialog,
   AppointmentDeleteDialog,
@@ -22,6 +23,7 @@ import {
 import { isShopAdmin, isShopStaff } from "../../auth/roles";
 import { session } from "../../auth/session";
 import { dateTimeShortFromIso, formatClock12h, timeFromIso } from "../../public-booking/formatters";
+import { moneyExact } from "../../money";
 import { DateTimeLocalFields } from "../DateTimeLocalFields";
 import { dateToNaiveLocalIso, appointmentLocalDate, appointmentMinutesOfDay, toDateTimeLocalValue, toNaiveLocalIso } from "../appointmentDateTime";
 
@@ -38,6 +40,7 @@ type Appointment = {
   status: string;
   notes: string | null;
   proposed_start_time?: string | null;
+  tip_amount?: number;
 };
 
 type StaffOpt = {
@@ -49,7 +52,7 @@ type StaffOpt = {
   first_name?: string | null;
   last_name?: string | null;
 };
-type SvcOpt = { id: string; name?: string };
+type SvcOpt = { id: string; name?: string; price?: number };
 
 type ViewMode = "day" | "week";
 
@@ -144,6 +147,7 @@ export function CalendarPage() {
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [completePayOpen, setCompletePayOpen] = useState(false);
   const [completePay, setCompletePay] = useState("");
+  const [completeTip, setCompleteTip] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionDialog, setActionDialog] = useState<"reschedule" | "cancel" | "delete" | null>(null);
 
@@ -235,6 +239,7 @@ export function CalendarPage() {
     id: string,
     status: string,
     paymentMethod?: string,
+    tipAmount?: number,
   ) => {
     const a = items.find((x) => x.id === id) ?? selected;
     if (!a?.start_time || !a.end_time) return;
@@ -247,9 +252,14 @@ export function CalendarPage() {
         ...(status === "completed" && paymentMethod
           ? { payment_method: paymentMethod }
           : {}),
+        ...(status === "completed" ? { tip_amount: tipAmount ?? 0 } : {}),
       });
       await load();
-      setSelected((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+      setSelected((prev) =>
+        prev && prev.id === id
+          ? { ...prev, status, ...(tipAmount != null ? { tip_amount: tipAmount } : {}) }
+          : prev,
+      );
     } catch (e: unknown) {
       const msg =
         axios.isAxiosError(e) && e.response?.data && typeof e.response.data === "object"
@@ -263,6 +273,7 @@ export function CalendarPage() {
 
   const openCompletePay = () => {
     setCompletePay("");
+    setCompleteTip("");
     setCompletePayOpen(true);
     setErr(null);
   };
@@ -273,9 +284,15 @@ export function CalendarPage() {
       setErr("Selecciona el método de pago.");
       return;
     }
+    const tip = parseTipInput(completeTip);
+    if (!tip.ok) {
+      setErr(tip.error);
+      return;
+    }
     setCompletePayOpen(false);
-    await patchStatus(selected.id, "completed", completePay);
+    await patchStatus(selected.id, "completed", completePay, tip.amount);
     setCompletePay("");
+    setCompleteTip("");
   };
 
   const reschedule = async () => {
@@ -571,6 +588,12 @@ export function CalendarPage() {
                 <label className="bp-label">Barbero</label>
                 <div>{resolveStaffLabel(selected.employee_id)}</div>
               </div>
+              {selected.status === "completed" && Number(selected.tip_amount) > 0 ? (
+                <div className="bp-field">
+                  <label className="bp-label">Propina</label>
+                  <div>{moneyExact(Number(selected.tip_amount))}</div>
+                </div>
+              ) : null}
               <DateTimeLocalFields
                 dateId="cal-start-date"
                 timeId="cal-start-time"
@@ -712,7 +735,11 @@ export function CalendarPage() {
             type="button"
             className="bp-panel__overlay"
             aria-label="Cerrar"
-            onClick={() => setCompletePayOpen(false)}
+            onClick={() => {
+              setCompletePayOpen(false);
+              setCompletePay("");
+              setCompleteTip("");
+            }}
           />
           <div className="bp-panel" role="dialog" aria-modal="true">
             <div className="bp-panel__header">
@@ -725,7 +752,11 @@ export function CalendarPage() {
               <button
                 type="button"
                 className="bp-icon-btn"
-                onClick={() => setCompletePayOpen(false)}
+                onClick={() => {
+                  setCompletePayOpen(false);
+                  setCompletePay("");
+                  setCompleteTip("");
+                }}
               >
                 <IconClose />
               </button>
@@ -735,12 +766,26 @@ export function CalendarPage() {
                 value={completePay}
                 onChange={(v) => setCompletePay(v)}
               />
+              <TipAmountField
+                id="cal-complete-tip"
+                value={completeTip}
+                onChange={setCompleteTip}
+                servicePrice={
+                  selected.service_type_id
+                    ? Number(services.find((s) => s.id === selected.service_type_id)?.price ?? 0)
+                    : null
+                }
+              />
             </div>
             <div className="bp-panel__footer">
               <button
                 type="button"
                 className="bp-btn bp-btn--secondary"
-                onClick={() => setCompletePayOpen(false)}
+                onClick={() => {
+                  setCompletePayOpen(false);
+                  setCompletePay("");
+                  setCompleteTip("");
+                }}
                 disabled={saving}
               >
                 Cancelar

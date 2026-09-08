@@ -10,6 +10,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (
+            id.includes("/src/BookingApp") ||
+            (id.includes("/src/public-booking/") && !id.includes("RescheduleConfirmPage"))
+          ) {
+            return "booking";
+          }
           if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
             return "vendor-react";
           }

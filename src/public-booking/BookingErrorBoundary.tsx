@@ -37,7 +37,6 @@ export class BookingErrorBoundary extends Component<Props, State> {
         <div
           className="pb-root"
           style={{
-            minHeight: "100vh",
             background: "#ffffff",
             color: "#0f172a",
             padding: "1.5rem",

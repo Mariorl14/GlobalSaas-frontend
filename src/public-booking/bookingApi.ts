@@ -56,6 +56,11 @@ declare global {
 
 const BOOTSTRAP_TTL_MS = 60_000;
 const bootstrapCache = new Map<string, { at: number; promise: Promise<PublicBootstrap> }>();
+const inflightAvailability = new Map<
+  string,
+  Promise<{ slots: Slot[]; allow_any_barber: boolean }>
+>();
+const inflightHints = new Map<string, Promise<Record<string, boolean>>>();
 
 function cacheBootstrap(slug: string, promise: Promise<PublicBootstrap>) {
   bootstrapCache.set(slug, { at: Date.now(), promise });
@@ -108,22 +113,47 @@ export async function fetchAvailability(
   slug: string,
   params: { date: string; service_id: string; employee_id?: string },
 ) {
-  const res = await axios.get<{ slots: Slot[]; allow_any_barber: boolean }>(
-    `${base}/${encodeURIComponent(slug)}/availability`,
-    { params: { ...params, _t: Date.now() } },
-  );
-  return res.data;
+  const key = `${slug}|${params.date}|${params.service_id}|${params.employee_id || ""}`;
+  const existing = inflightAvailability.get(key);
+  if (existing) return existing;
+  const promise = axios
+    .get<{ slots: Slot[]; allow_any_barber: boolean }>(
+      `${base}/${encodeURIComponent(slug)}/availability`,
+      { params },
+    )
+    .then((res) => res.data)
+    .finally(() => {
+      if (inflightAvailability.get(key) === promise) inflightAvailability.delete(key);
+    });
+  inflightAvailability.set(key, promise);
+  return promise;
+}
+
+export function prefetchCalendarHints(
+  slug: string,
+  params: { year: number; month: number; service_id: string; employee_id?: string },
+) {
+  if (slug && params.service_id) void fetchCalendarHints(slug, params);
 }
 
 export async function fetchCalendarHints(
   slug: string,
   params: { year: number; month: number; service_id: string; employee_id?: string },
 ) {
-  const res = await axios.get<{ days: Record<string, boolean> }>(
-    `${base}/${encodeURIComponent(slug)}/calendar-hints`,
-    { params: { ...params, _t: Date.now() } },
-  );
-  return res.data.days;
+  const key = `${slug}|${params.year}|${params.month}|${params.service_id}|${params.employee_id || ""}`;
+  const existing = inflightHints.get(key);
+  if (existing) return existing;
+  const promise = axios
+    .get<{ days: Record<string, boolean> }>(
+      `${base}/${encodeURIComponent(slug)}/calendar-hints`,
+      { params },
+    )
+    .then((res) => res.data.days)
+    .finally(() => {
+      if (inflightHints.get(key) === promise) inflightHints.delete(key);
+    });
+  inflightHints.set(key, promise);
+  return promise;
 }
 
 export async function customerRegister(

@@ -1,11 +1,16 @@
-import { StrictMode, Suspense } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { BookingErrorBoundary } from "./public-booking/BookingErrorBoundary";
 import { PublicBarberBookingPage } from "./public-booking/PublicBarberBookingPage";
-import { RescheduleConfirmPage } from "./public-booking/RescheduleConfirmPage";
 import { RouteFallback } from "./RouteFallback";
-import "./index.css";
+import "./public-booking/public-booking.css";
+
+const RescheduleConfirmPage = lazy(() =>
+  import("./public-booking/RescheduleConfirmPage").then((m) => ({
+    default: m.RescheduleConfirmPage,
+  })),
+);
 
 export function mountPublicBooking(el: HTMLElement) {
   createRoot(el).render(

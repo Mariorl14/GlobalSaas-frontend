@@ -58,6 +58,8 @@ type InsightsPayload = {
     average_ticket_delta_pct: number | null;
     occupancy_rate: number | null;
     occupancy_delta_pct: number | null;
+    tips?: number;
+    total_collected?: number;
   };
   payment_methods?: {
     cash: { revenue: number; count: number; service_revenue: number; product_revenue: number };
@@ -107,6 +109,7 @@ type InsightsPayload = {
     occupancy: number | null;
     completion_rate: number | null;
     rank: number;
+    tips?: number;
   }>;
   customers: {
     total: number;
@@ -617,6 +620,11 @@ export function DashboardPage() {
           </div>
         </div>
         <p className="bp-meta-note">{data.meta?.currency_note}</p>
+        {(s.tips ?? 0) > 0 ? (
+          <p className="bp-meta-note">
+            Propinas {money(s.tips)} · Total cobrado {money(s.total_collected ?? s.revenue + (s.tips ?? 0))}
+          </p>
+        ) : null}
       </section>
 
       {data.payment_methods ? (
@@ -871,6 +879,10 @@ export function DashboardPage() {
                   <div>
                     <span>Negocio</span>
                     <strong>{money(st.business_share ?? st.revenue)}</strong>
+                  </div>
+                  <div>
+                    <span>Propinas</span>
+                    <strong>{money(st.tips ?? 0)}</strong>
                   </div>
                   <div>
                     <span>Citas OK</span>
