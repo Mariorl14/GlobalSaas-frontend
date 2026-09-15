@@ -55,13 +55,18 @@ export function StaffPage() {
   });
   const [followBusinessHours, setFollowBusinessHours] = useState(true);
   const [hours, setHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
+  const [shopHours, setShopHours] = useState<WeeklySchedule>(() => parseBusinessHoursJson(null));
   const [panelOpen, setPanelOpen] = useState(false);
   const admin = isShopAdmin(session.getUser());
 
   const load = useCallback(async () => {
     try {
-      const res = await axios.get<{ items: StaffRow[] }>(`${API_BASE_URL}/api/shop/staff`);
-      setItems(res.data.items);
+      const [staffRes, settingsRes] = await Promise.all([
+        axios.get<{ items: StaffRow[] }>(`${API_BASE_URL}/api/shop/staff`),
+        axios.get<{ business_hours_json?: string | null }>(`${API_BASE_URL}/api/shop/settings`),
+      ]);
+      setItems(staffRes.data.items);
+      setShopHours(parseBusinessHoursJson(settingsRes.data.business_hours_json));
     } catch {
       setErr("Error al cargar equipo.");
     }
@@ -91,7 +96,7 @@ export function StaffPage() {
     const follows =
       r.follows_business_hours ?? !(r.work_hours_json && r.work_hours_json.trim());
     setFollowBusinessHours(follows);
-    setHours(parseBusinessHoursJson(r.work_hours_json));
+    setHours(follows ? shopHours : parseBusinessHoursJson(r.work_hours_json));
     setErr(null);
     setPanelOpen(true);
   };
@@ -251,8 +256,8 @@ export function StaffPage() {
       )}
 
       <p className="bp-hint" style={{ marginTop: 20 }}>
-        El horario del negocio (Ajustes) marca la apertura del local. Cada persona puede usar ese
-        mismo horario o definir sus propios días y horas.
+        El horario del negocio (Ajustes) es el predeterminado. Cada persona puede usar ese mismo
+        horario o definir el suyo: si trabaja otras horas, se usan las suyas, no un recorte del local.
       </p>
 
       {panelOpen && editingRow ? (
@@ -352,9 +357,9 @@ export function StaffPage() {
               <div className="bp-field" style={{ marginTop: 8 }}>
                 <label className="bp-label">Horario laboral</label>
                 <p className="bp-hint" style={{ marginTop: 0 }}>
-                  Si todos trabajan los mismos días, deja “horario del negocio”. Si no, marca los días
-                  de esta persona (ej. Lun–Mié). Solo se ofrecen citas en la intersección con el
-                  horario del local.
+                  Si todos trabajan los mismos días y horas, deja “horario del negocio”. Si esta
+                  persona entra otro turno (por ejemplo solo tardes), define su horario: esas horas
+                  reemplazan las del local para sus citas.
                 </p>
                 <label className="bp-switch-row" style={{ marginBottom: 12 }}>
                   <span className="bp-switch-row__text">Usar horario del negocio</span>
@@ -362,7 +367,13 @@ export function StaffPage() {
                     <input
                       type="checkbox"
                       checked={followBusinessHours}
-                      onChange={(e) => setFollowBusinessHours(e.target.checked)}
+                      onChange={(e) => {
+                        const follow = e.target.checked;
+                        setFollowBusinessHours(follow);
+                        if (!follow) {
+                          setHours(shopHours);
+                        }
+                      }}
                     />
                     <span className="bp-switch__track" />
                     <span className="bp-switch__thumb" />
