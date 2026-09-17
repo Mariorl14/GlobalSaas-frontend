@@ -67,6 +67,11 @@ const RescheduleConfirmPage = lazy(() =>
     default: m.RescheduleConfirmPage,
   })),
 );
+const ManageAppointmentPage = lazy(() =>
+  import("./public-booking/ManageAppointmentPage.tsx").then((m) => ({
+    default: m.ManageAppointmentPage,
+  })),
+);
 const Business = lazy(() =>
   import("./components/super-admin/Business.tsx").then((m) => ({ default: m.Business })),
 );
@@ -592,6 +597,14 @@ function App() {
         element={
           <Lazy>
             <RescheduleConfirmPage />
+          </Lazy>
+        }
+      />
+      <Route
+        path="/appointment/manage/:token"
+        element={
+          <Lazy>
+            <ManageAppointmentPage />
           </Lazy>
         }
       />

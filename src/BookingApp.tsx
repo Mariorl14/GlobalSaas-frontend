@@ -11,6 +11,11 @@ const RescheduleConfirmPage = lazy(() =>
     default: m.RescheduleConfirmPage,
   })),
 );
+const ManageAppointmentPage = lazy(() =>
+  import("./public-booking/ManageAppointmentPage").then((m) => ({
+    default: m.ManageAppointmentPage,
+  })),
+);
 
 export function mountPublicBooking(el: HTMLElement) {
   createRoot(el).render(
@@ -24,6 +29,7 @@ export function mountPublicBooking(el: HTMLElement) {
                 path="/appointment/reschedule/confirm/:token"
                 element={<RescheduleConfirmPage />}
               />
+              <Route path="/appointment/manage/:token" element={<ManageAppointmentPage />} />
             </Routes>
           </Suspense>
         </BookingErrorBoundary>

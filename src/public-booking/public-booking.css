@@ -427,6 +427,27 @@ body,
   cursor: wait;
 }
 
+.pb-btn-danger {
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.pb-btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.pb-btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pb-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* Calendar */
 .pb-cal-header {
   display: flex;
